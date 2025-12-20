@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Feature from "@/models/Feature";
+import Review from "@/models/Review"; // Naya Import
 
 export async function GET() {
   try {
     await connectDB();
 
-    // Pehle purana data saaf karenge taki duplicate na ho
+    // 1. Clear Old Data
     await Feature.deleteMany({});
+    await Review.deleteMany({}); // Reviews bhi clear karein
 
-    // Wahi same data aur SVGs jo design mein the
-    // Note: Maine classes SVG string ke andar hi daal di hain taki design same rahe
+    // 2. Insert Features (Purana code same rahega)
     const features = [
       {
         title: "Live Interactive Classes",
@@ -46,7 +47,37 @@ export async function GET() {
 
     await Feature.insertMany(features);
 
-    return NextResponse.json({ message: "Database seeded successfully with Demo Data!" });
+    // 3. Insert Reviews (Naya Data)
+    const reviews = [
+      {
+        name: "Rahul Sharma",
+        role: "Class 12 Student",
+        message: "LearnR has completely changed how I study English. The live classes are interactive, and my grammar has improved significantly!",
+        rating: 5
+      },
+      {
+        name: "Priya Patel",
+        role: "Competitive Exam Aspirant",
+        message: "The weekly tests are amazing. I can see my rank instantly and work on my weak areas. Highly recommended!",
+        rating: 5
+      },
+      {
+        name: "Amit Verma",
+        role: "Class 10 Student",
+        message: "I love the digital notice board feature. I never miss any class updates or homework deadlines now.",
+        rating: 4
+      },
+      {
+        name: "Sneha Gupta",
+        role: "College Student",
+        message: "The study material is top-notch. I don't need to buy extra books because everything is available in the app.",
+        rating: 5
+      }
+    ];
+
+    await Review.insertMany(reviews);
+
+    return NextResponse.json({ message: "Database seeded successfully with Features and Reviews!" });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
