@@ -2,10 +2,10 @@ import Link from "next/link";
 
 export default function HeroSection() {
   return (
-    // PC: Same min-height. Mobile: Adjusted spacing.
-    <div className="relative overflow-hidden bg-black min-h-[calc(100vh-5rem)] flex items-center">
+    // FIX: 'min-h-screen' और 'pt-20' जोड़ा गया है ताकि कंटेंट Navbar के नीचे से शुरू हो
+    <div className="relative overflow-hidden bg-black min-h-screen flex items-center pt-20">
       
-      {/* --- BACKGROUND (NO CHANGES FOR PC) --- */}
+      {/* --- BACKGROUND (NO CHANGES) --- */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-gray-800/40 via-[#050505] to-black z-0" />
       <div 
         className="absolute inset-0 z-0 opacity-20"
@@ -15,13 +15,13 @@ export default function HeroSection() {
         }}
       ></div>
 
-      {/* Blobs: PC same. Mobile: Adjusted size/position slightly for cleaner look */}
+      {/* Blobs */}
       <div className="absolute top-0 -left-1/4 w-1/2 h-1/2 bg-yellow-500/10 rounded-full blur-3xl pointer-events-none z-0 animate-[pulse_10s_ease-in-out_infinite]" />
       <div className="absolute bottom-0 -right-1/4 w-1/2 h-1/2 bg-yellow-600/10 rounded-full blur-3xl pointer-events-none z-0 animate-[pulse_12s_ease-in-out_infinite]" />
       {/* --- BACKGROUND END --- */}
 
 
-      {/* Container: PC 'py-12' (Same). Mobile 'py-8' (Compact). */}
+      {/* Container */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12 w-full relative z-10">
         
         <div className="lg:grid lg:grid-cols-12 lg:gap-8 items-center">
@@ -35,18 +35,18 @@ export default function HeroSection() {
               Premium English Coaching
             </div>
             
-            {/* Heading: PC 'text-7xl' (Same). Mobile 'text-4xl' (Adjusted). */}
+            {/* Heading */}
             <h1 className="text-4xl tracking-tight font-extrabold text-white sm:text-5xl md:text-6xl lg:text-7xl">
               Unlock Your <span className="block text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500 animate-[pulse_6s_ease-in-out_infinite]">Potential.</span>
               Master English.
             </h1>
             
-            {/* Subtext: PC same. Mobile: Smaller text and margin. */}
+            {/* Subtext */}
             <p className="mt-4 sm:mt-6 text-sm sm:text-base text-gray-300 sm:text-xl lg:text-lg xl:text-xl leading-relaxed font-light">
               Join <span className="text-yellow-400 font-medium">LearnR</span> today. We blend modern teaching techniques with personalized attention to help you speak and write with absolute confidence.
             </p>
             
-            {/* Buttons: PC same (Row). Mobile: Stacked (Col) for App feel. */}
+            {/* Buttons */}
             <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row sm:justify-center lg:justify-start space-y-3 sm:space-y-0 sm:space-x-5">
               <div className="rounded-full shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:shadow-[0_0_30px_rgba(234,179,8,0.6)] transition-all duration-300 w-full sm:w-auto">
                 <Link href="/courses" className="w-full flex items-center justify-center px-8 py-3 sm:py-4 border border-transparent text-base font-bold rounded-full text-black bg-yellow-400 hover:bg-yellow-300 transition-all duration-300 transform hover:-translate-y-1">
@@ -65,12 +65,10 @@ export default function HeroSection() {
           </div>
 
           {/* --- RIGHT SIDE (CARD) --- */}
-          {/* Mobile: Added 'scale-90' and 'mt-12' to fit better. PC: Unchanged. */}
           <div className="mt-12 lg:mt-0 lg:col-span-6 relative flex items-center justify-center perspective-[2000px] transform scale-90 sm:scale-100 origin-center">
              <div className="relative w-full max-w-md mx-auto group">
 
                 {/* Tera Mera Rings */}
-                {/* Mobile: '-inset-8' (Smaller). PC: '-inset-24' (Big, Unchanged). */}
                 <div className="absolute -inset-8 md:-inset-24 border-2 border-dashed border-yellow-500/30 rounded-[60%_40%_30%_70%/60%_30%_70%_40%] animate-[spin_60s_linear_infinite]"></div>
                 <div className="absolute -inset-4 md:-inset-12 border border-dotted border-yellow-500/40 rounded-[40%_60%_70%_30%/50%_60%_30%_60%] animate-[spin_50s_linear_infinite_reverse]"></div>
                 
@@ -78,7 +76,7 @@ export default function HeroSection() {
                 <div className="absolute top-8 left-8 w-4/5 h-4/5 border border-white/5 bg-gray-900/40 backdrop-blur-xl rounded-3xl transform -rotate-6 z-10 shadow-2xl transition-transform duration-500 group-hover:-rotate-12"></div>
                 <div className="absolute top-4 left-4 w-4/5 h-4/5 border border-yellow-500/20 bg-gray-800/40 backdrop-blur-xl rounded-3xl transform rotate-3 z-20 shadow-[0_0_30px_rgba(234,179,8,0.1)] transition-transform duration-500 group-hover:rotate-6"></div>
                 
-                {/* MAIN CARD (CONTENT UNCHANGED) */}
+                {/* MAIN CARD */}
                 <div className="relative z-30 bg-black/80 backdrop-blur-2xl border border-yellow-500/40 rounded-3xl p-6 sm:p-8 shadow-[0_30px_60px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500 hover:scale-[1.02] hover:shadow-[0_30px_60px_rgba(234,179,8,0.25)]">
                    
                    <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fbbf24_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none"></div>

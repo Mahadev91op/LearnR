@@ -2,6 +2,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/shared/Navbar";
 import Footer from "@/components/shared/Footer";
+import { ToastProvider } from "@/components/shared/Toast";
+import { AuthProvider } from "@/components/shared/AuthContext"; // Import AuthProvider
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -13,19 +15,14 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      {/* FIX: suppressHydrationWarning={true} add kiya gaya hai.
-        Yeh browser extensions (Grammarly, etc.) ki wajah se aane wale
-        attributes mismatch error ko ignore karega.
-      */}
       <body className={inter.className} suppressHydrationWarning={true}>
-        {/* Navbar */}
-        <Navbar />
-        
-        {/* Main Content */}
-        {children}
-        
-        {/* Footer */}
-        <Footer />
+        <AuthProvider> {/* Sabse bahar AuthProvider lagayein */}
+          <ToastProvider>
+            <Navbar />
+            {children}
+            <Footer />
+          </ToastProvider>
+        </AuthProvider>
       </body>
     </html>
   );
