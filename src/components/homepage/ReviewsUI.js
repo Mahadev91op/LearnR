@@ -7,9 +7,12 @@ export default function ReviewsUI({ reviews }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const marqueeRef = useRef(null);
   
-  const marqueeReviews = reviews.length < 5 
-    ? [...reviews, ...reviews, ...reviews, ...reviews, ...reviews, ...reviews] 
-    : [...reviews, ...reviews, ...reviews];
+  // Safety check: Agar reviews undefined ho toh empty array use karein
+  const safeReviews = Array.isArray(reviews) ? reviews : [];
+
+  const marqueeReviews = safeReviews.length < 5 
+    ? [...safeReviews, ...safeReviews, ...safeReviews, ...safeReviews, ...safeReviews, ...safeReviews] 
+    : [...safeReviews, ...safeReviews, ...safeReviews];
 
   const handleMouseEnter = () => {
     if (marqueeRef.current) {
@@ -28,20 +31,12 @@ export default function ReviewsUI({ reviews }) {
   return (
     <div className="relative w-full flex flex-col items-center">
       
-      {/* UPDATED CONTAINER: 
-         - Added '[mask-image:...]' class.
-         - Ye cards ko side se smooth fade karega bina koi black layer dale.
-      */}
       <div 
         className="w-full overflow-hidden relative group py-4 md:py-10 [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
         
-        {/* REMOVED: Old Gradient Divs deleted from here.
-           Ab phone me koi alag black border nahi dikhega.
-        */}
-
         <div 
             ref={marqueeRef}
             className="flex gap-4 md:gap-8 animate-marquee pl-4"
@@ -51,9 +46,8 @@ export default function ReviewsUI({ reviews }) {
               key={index}
               className="group/card relative w-[280px] md:w-[400px] flex-shrink-0 cursor-pointer"
             >
-                <div className="h-full bg-gray-900/40 backdrop-blur-md border border-white/5 rounded-[20px] md:rounded-3xl p-6 md:p-8 transition-all duration-500 ease-out 
-                                group-hover/card:bg-gray-800/80 group-hover/card:border-yellow-500/40 
-                                group-hover/card:shadow-[0_0_50px_-15px_rgba(234,179,8,0.2)] group-hover/card:-translate-y-1 md:group-hover/card:-translate-y-2">
+                {/* FIXED: ClassName is now in a single line to prevent Hydration Mismatch */}
+                <div className="h-full bg-gray-900/40 backdrop-blur-md border border-white/5 rounded-[20px] md:rounded-3xl p-6 md:p-8 transition-all duration-500 ease-out group-hover/card:bg-gray-800/80 group-hover/card:border-yellow-500/40 group-hover/card:shadow-[0_0_50px_-15px_rgba(234,179,8,0.2)] group-hover/card:-translate-y-1 md:group-hover/card:-translate-y-2">
                    
                    <div className="absolute inset-0 bg-gradient-to-b from-yellow-500/0 to-yellow-500/5 opacity-0 group-hover/card:opacity-100 rounded-[20px] md:rounded-3xl transition-opacity duration-700"></div>
 
@@ -63,7 +57,7 @@ export default function ReviewsUI({ reviews }) {
 
                    <div className="flex items-center gap-3 md:gap-4 mb-4 md:mb-6 relative z-10">
                       <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-gray-800 to-black border border-white/10 flex items-center justify-center text-white font-bold text-sm md:text-lg shadow-inner group-hover/card:border-yellow-500 group-hover/card:text-yellow-400 transition-colors">
-                        {review.name.charAt(0)}
+                        {review.name ? review.name.charAt(0) : "U"}
                       </div>
                       <div>
                         <h4 className="text-white font-bold text-sm md:text-base tracking-wide group-hover/card:text-yellow-400 transition-colors">{review.name}</h4>
@@ -80,7 +74,7 @@ export default function ReviewsUI({ reviews }) {
                    <div className="mt-auto flex justify-between items-center border-t border-white/5 pt-3 md:pt-4 group-hover/card:border-white/10 transition-colors relative z-10">
                       <div className="flex gap-1">
                           {[...Array(5)].map((_, i) => (
-                            <svg key={i} className={`w-3 h-3 md:w-4 md:h-4 transition-transform duration-300 ${i < review.rating ? 'text-yellow-500 group-hover/card:scale-110' : 'text-gray-800'}`} fill="currentColor" viewBox="0 0 20 20">
+                            <svg key={i} className={`w-3 h-3 md:w-4 md:h-4 transition-transform duration-300 ${i < (review.rating || 5) ? 'text-yellow-500 group-hover/card:scale-110' : 'text-gray-800'}`} fill="currentColor" viewBox="0 0 20 20">
                                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                             </svg>
                           ))}

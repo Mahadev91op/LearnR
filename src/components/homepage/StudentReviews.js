@@ -3,16 +3,24 @@ import Review from "@/models/Review";
 import ReviewsUI from "./ReviewsUI";
 
 async function getReviews() {
-  await connectDB();
-  const reviews = await Review.find({}).sort({ createdAt: -1 }).limit(10).lean();
-  
-  // ERROR FIX: Convert _id and Dates to String
-  return reviews.map((review) => ({
-    ...review,
-    _id: review._id.toString(),
-    createdAt: review.createdAt ? review.createdAt.toString() : null,
-    updatedAt: review.updatedAt ? review.updatedAt.toString() : null,
-  }));
+  try {
+    // Database connection try karega
+    await connectDB();
+    const reviews = await Review.find({}).sort({ createdAt: -1 }).limit(10).lean();
+    
+    // Data ko clean karke return karega
+    return reviews.map((review) => ({
+      ...review,
+      _id: review._id.toString(),
+      createdAt: review.createdAt ? review.createdAt.toString() : null,
+      updatedAt: review.updatedAt ? review.updatedAt.toString() : null,
+    }));
+  } catch (error) {
+    // Agar DB connect nahi hua (ETIMEOUT), toh error console mein dikhayega
+    // lekin website crash nahi hogi, empty array return karega
+    console.error("Database Connection Failed (Reviews):", error.message);
+    return []; 
+  }
 }
 
 export default async function StudentReviews() {
@@ -41,6 +49,7 @@ export default async function StudentReviews() {
             </p>
         </div>
 
+        {/* Reviews UI Component */}
         <ReviewsUI reviews={reviews} />
 
       </div>
