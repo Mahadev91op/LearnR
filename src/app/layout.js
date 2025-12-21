@@ -1,32 +1,27 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
-// Path ab shared folder point kar raha hai
-import Navbar from "../components/shared/Navbar"; 
+import Navbar from "@/components/shared/Navbar";
+import Footer from "@/components/shared/Footer"; // <-- Footer Import kiya
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "LearnR - English Coaching",
-  description: "Master English with the best coaching platform.",
+  title: "LearnR - The Future of English Learning",
+  description: "Join the revolution of smart education with LearnR.",
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body
-        suppressHydrationWarning={true}
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black text-white`}
-      >
+      <body className={inter.className}>
+        {/* Navbar */}
         <Navbar />
+        
+        {/* Main Content */}
         {children}
+        
+        {/* Footer */}
+        <Footer />
       </body>
     </html>
   );
