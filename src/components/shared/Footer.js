@@ -75,8 +75,9 @@ export default function Footer() {
   const pathname = usePathname();
   const currentYear = new Date().getFullYear();
 
-  // Is logic se Footer Login/Signup page par hide ho jayega
-  if (["/login", "/signup"].includes(pathname)) {
+  // LOGIC UPDATE: Footer sirf Homepage ('/') par dikhega.
+  // Baaki sabhi pages (Login, Signup, Profile, Courses, etc.) par null return karega.
+  if (pathname !== "/") {
     return null;
   }
 
@@ -87,11 +88,6 @@ export default function Footer() {
       opacity: 1,
       transition: { staggerChildren: 0.1, delayChildren: 0.2 },
     },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
   };
 
   return (
