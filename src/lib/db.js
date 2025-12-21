@@ -12,7 +12,8 @@ if (!cached) {
   cached = global.mongoose = { conn: null, promise: null };
 }
 
-async function connectDB() {
+// Yahan 'export' keyword add kiya hai (Named Export)
+export async function connectDB() {
   if (cached.conn) {
     return cached.conn;
   }
@@ -31,4 +32,5 @@ async function connectDB() {
   return cached.conn;
 }
 
+// Compatibility ke liye default export bhi rehne diya hai
 export default connectDB;

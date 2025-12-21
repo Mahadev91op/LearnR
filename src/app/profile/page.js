@@ -1,11 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/shared/AuthContext";
+import { useToast } from "@/components/shared/Toast"; // Naya Toast hook
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function ProfilePage() {
   const { user, login, loading } = useAuth();
+  const { addToast } = useToast(); // Toast function use kiya
   const router = useRouter();
   
   const [formData, setFormData] = useState({
@@ -21,7 +23,6 @@ export default function ProfilePage() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otp, setOtp] = useState("");
-  const [status, setStatus] = useState({ type: "", message: "" });
 
   useEffect(() => {
     if (!loading && !user) {
@@ -45,7 +46,6 @@ export default function ProfilePage() {
   const initiateUpdate = async (e) => {
     e.preventDefault();
     setIsSendingOtp(true);
-    setStatus({ type: "", message: "" });
 
     try {
       const res = await fetch("/api/user/send-otp", { method: "POST" });
@@ -53,12 +53,12 @@ export default function ProfilePage() {
 
       if (res.ok) {
         setShowOtpModal(true);
-        setStatus({ type: "success", message: "OTP sent to your email!" });
+        addToast("OTP sent to your email!", "success"); // Professional Toast
       } else {
-        setStatus({ type: "error", message: data.message || "Failed to send OTP" });
+        addToast(data.message || "Failed to send OTP", "error");
       }
     } catch (error) {
-      setStatus({ type: "error", message: "Server connection failed" });
+      addToast("Server connection failed", "error");
     } finally {
       setIsSendingOtp(false);
     }
@@ -81,25 +81,20 @@ export default function ProfilePage() {
       const data = await res.json();
 
       if (res.ok) {
-        // SUCCESS: Pehle modal band karein
         setShowOtpModal(false); 
         setOtp(""); 
         
-        // Phir data update karein
         if (data.user) {
           login(data.user); 
         }
         
-        setStatus({ type: "success", message: "Profile updated successfully! ✅" });
-        
-        // Status message ko thodi der baad hatayein
-        setTimeout(() => setStatus({ type: "", message: "" }), 4000);
+        addToast("Profile updated successfully! ✅", "success");
       } else {
-        setStatus({ type: "error", message: data.message || "Invalid OTP" });
+        addToast(data.message || "Invalid OTP", "error");
       }
     } catch (error) {
       console.error("Update failed:", error);
-      setStatus({ type: "error", message: "Update failed. Please try again." });
+      addToast("Update failed. Please try again.", "error");
     } finally {
       setIsVerifying(false);
     }
@@ -180,6 +175,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* OTP Modal */}
       <AnimatePresence>
         {showOtpModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -202,19 +198,11 @@ export default function ProfilePage() {
           </div>
         )}
       </AnimatePresence>
-
-      <AnimatePresence>
-        {status.message && (
-          <motion.div initial={{ opacity: 0, y: 50, x: "-50%" }} animate={{ opacity: 1, y: 0, x: "-50%" }} exit={{ opacity: 0, y: 20, x: "-50%" }} className={`fixed bottom-8 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl border backdrop-blur-md z-[60] ${status.type === "success" ? "bg-green-500/10 border-green-500/50 text-green-400" : "bg-red-500/10 border-red-500/50 text-red-400"}`}>
-            {status.message}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
 
-// Helper components and icons remain the same...
+// Helper Components
 function InputGroup({ label, name, value, onChange, icon: Icon }) {
   return (
     <div className="space-y-2 group">
@@ -231,7 +219,10 @@ function InfoItem({ icon: Icon, label, value }) {
   return (
     <div className="flex items-center gap-4 bg-white/5 p-3 rounded-xl border border-white/5">
       <div className="w-10 h-10 rounded-full bg-[#0a0a0a] flex items-center justify-center text-gray-400"><Icon className="w-5 h-5" /></div>
-      <div className="text-left"><p className="text-xs text-gray-500 uppercase font-bold">{label}</p><p className="text-sm text-gray-200">{value || "Not set"}</p></div>
+      <div className="text-left">
+        <p className="text-xs text-gray-500 uppercase font-bold">{label}</p>
+        <p className="text-sm text-gray-200">{value || "Not set"}</p>
+      </div>
     </div>
   );
 }
