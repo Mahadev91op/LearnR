@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 
@@ -71,7 +72,13 @@ const MobileAccordion = ({ title, children }) => {
 };
 
 export default function Footer() {
+  const pathname = usePathname();
   const currentYear = new Date().getFullYear();
+
+  // Is logic se Footer Login/Signup page par hide ho jayega
+  if (["/login", "/signup"].includes(pathname)) {
+    return null;
+  }
 
   // Animations variants
   const containerVariants = {
