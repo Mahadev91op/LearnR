@@ -6,48 +6,38 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true); // Loading state add kiya hai
   const router = useRouter();
 
-  // Page Load par check karein ki user login hai ya nahi
+  // 1. Page Load hote hi check karega ki user pehle se login hai ya nahi
   useEffect(() => {
-    const checkUser = async () => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
       try {
-        // Cache avoid karne ke liye timestamp add kiya
-        const res = await fetch(`/api/auth/me?t=${Date.now()}`);
-        const data = await res.json();
-        if (data.user) {
-          setUser(data.user);
-        } else {
-          setUser(null);
-        }
+        setUser(JSON.parse(storedUser));
       } catch (error) {
-        console.error("Auth Check Failed:", error);
-        setUser(null);
+        console.error("Failed to parse user data", error);
+        localStorage.removeItem("user"); // Agar data corrupt hai to clear kar do
       }
-    };
-    checkUser();
+    }
+    setLoading(false); // Checking complete hone ke bad loading false
   }, []);
 
-  // Login function (Login page se call hoga)
+  // 2. Login Function (Data ko localStorage me bhi save karega)
   const login = (userData) => {
-    setUser(userData); // Turant state update
-    router.refresh(); // Server components refresh
+    setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
   };
 
-  // Logout function
-  const logout = async () => {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-      setUser(null); // Turant state clear
-      router.push("/login");
-      router.refresh();
-    } catch (error) {
-      console.error("Logout Failed:", error);
-    }
+  // 3. Logout Function (Data ko clear kar dega)
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem("user");
+    router.push("/login");
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
