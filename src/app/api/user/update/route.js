@@ -7,7 +7,6 @@ import Otp from "@/models/Otp";
 
 export async function PUT(request) {
   try {
-    // CHANGE: await lagaya hai
     const cookieStore = await cookies();
     const token = cookieStore.get("token");
 
@@ -21,24 +20,29 @@ export async function PUT(request) {
     const { name, fatherName, phone, school, classLevel, otp } = body;
 
     await connectDB();
+    
+    // User को ढूँढें ताकि उसका ईमेल मिल सके
     const user = await User.findById(decoded.id);
-
-    // --- OTP VERIFICATION START ---
-    if (!otp) {
-        return NextResponse.json({ message: "OTP is required" }, { status: 400 });
+    if (!user) {
+      return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    const otpRecord = await Otp.findOne({ email: user.email });
+    // --- OTP VERIFICATION ---
+    if (!otp) {
+        return NextResponse.json({ message: "OTP is required to update profile" }, { status: 400 });
+    }
 
-    if (!otpRecord || otpRecord.otp !== otp) {
+    // Otp model में 'otp' field है, इसलिए वही use करें
+    const otpRecord = await Otp.findOne({ email: user.email, otp: otp });
+
+    if (!otpRecord) {
         return NextResponse.json({ message: "Invalid or Expired OTP" }, { status: 400 });
     }
     
-    // Delete OTP after successful use
-    await Otp.deleteOne({ email: user.email });
-    // --- OTP VERIFICATION END ---
+    // सफल होने पर OTP डिलीट करें
+    await Otp.deleteOne({ _id: otpRecord._id });
 
-    // Update User
+    // --- Profile Update ---
     const updatedUser = await User.findByIdAndUpdate(
       decoded.id,
       { name, fatherName, phone, school, classLevel },
@@ -52,6 +56,6 @@ export async function PUT(request) {
 
   } catch (error) {
     console.error("Profile update error:", error);
-    return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ message: error.message || "Internal Server Error" }, { status: 500 });
   }
 }
