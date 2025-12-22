@@ -54,13 +54,13 @@ export default async function CoursesSection() {
             md:grid-cols-2 lg:grid-cols-4
         ">
           {courses.map((course) => (
-            <div 
+            <Link 
+              href={`/courses/${course._id}`}
               key={course._id}
               // UPDATED CARD SIZING:
-              // Mobile: min-w-[280px] (Fixed width for scrolling)
-              // Desktop: w-auto (Responsive grid width)
+              // Added 'block' to ensure Link behaves like a container
               className="
-                group relative 
+                block group relative 
                 min-w-[280px] w-[85vw] md:w-auto flex-shrink-0 snap-center 
                 bg-gray-900/40 border border-white/10 rounded-3xl overflow-hidden 
                 hover:border-yellow-500/50 transition-all duration-500 hover:-translate-y-2
@@ -113,7 +113,7 @@ export default async function CoursesSection() {
               </div>
 
               <div className="absolute inset-0 bg-gradient-to-t from-yellow-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-            </div>
+            </Link>
           ))}
         </div>
 
