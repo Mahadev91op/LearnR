@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link"; // Added Link import
 
 export default function CoursesClient({ initialCourses }) {
   const [query, setQuery] = useState("");
@@ -108,60 +109,65 @@ export default function CoursesClient({ initialCourses }) {
                         exit={{ opacity: 0, scale: 0.9 }}
                         transition={{ duration: 0.3 }}
                         key={course._id}
-                        className="group relative bg-gray-900/40 border border-white/10 rounded-2xl md:rounded-3xl overflow-hidden hover:border-yellow-500/50 transition-all duration-500 hover:-translate-y-2 flex flex-col h-full"
+                        className="h-full" // Layout fix for link wrapper
                     >
-                        {/* Gradient Bar */}
-                        <div className={`h-1.5 md:h-2 w-full bg-gradient-to-r ${course.gradient || 'from-yellow-500 to-orange-500'}`}></div>
+                        {/* Wrapped Card in Link */}
+                        <Link href={`/courses/${course._id}`} className="block h-full">
+                            <div className="group relative bg-gray-900/40 border border-white/10 rounded-2xl md:rounded-3xl overflow-hidden hover:border-yellow-500/50 transition-all duration-500 hover:-translate-y-2 flex flex-col h-full">
+                                {/* Gradient Bar */}
+                                <div className={`h-1.5 md:h-2 w-full bg-gradient-to-r ${course.gradient || 'from-yellow-500 to-orange-500'}`}></div>
 
-                        {/* Changed: Padding reduced for mobile (p-5 instead of p-8) */}
-                        <div className="p-5 md:p-8 flex flex-col flex-grow space-y-3 md:space-y-4">
-                            
-                            {/* Tags */}
-                            <div className="flex justify-between items-start">
-                                <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-gray-500 bg-white/5 px-2 py-1 rounded-md border border-white/5">
-                                    {course.category}
-                                </span>
-                                <div className="flex items-center gap-1 bg-yellow-500/10 px-2 py-1 rounded-full border border-yellow-500/20">
-                                    <span className="text-yellow-400 text-[10px] md:text-xs font-bold">★ {course.rating}</span>
+                                {/* Changed: Padding reduced for mobile (p-5 instead of p-8) */}
+                                <div className="p-5 md:p-8 flex flex-col flex-grow space-y-3 md:space-y-4">
+                                    
+                                    {/* Tags */}
+                                    <div className="flex justify-between items-start">
+                                        <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-gray-500 bg-white/5 px-2 py-1 rounded-md border border-white/5">
+                                            {course.category}
+                                        </span>
+                                        <div className="flex items-center gap-1 bg-yellow-500/10 px-2 py-1 rounded-full border border-yellow-500/20">
+                                            <span className="text-yellow-400 text-[10px] md:text-xs font-bold">★ {course.rating}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Content */}
+                                    <div className="flex-grow">
+                                        <h3 className="text-lg md:text-xl font-bold text-white mb-1 md:mb-2 group-hover:text-yellow-400 transition-colors line-clamp-2">
+                                            {course.title}
+                                        </h3>
+                                        <p className="text-gray-400 text-xs md:text-sm leading-relaxed line-clamp-3">
+                                            {course.description}
+                                        </p>
+                                    </div>
+
+                                    {/* Meta Info */}
+                                    <div className="grid grid-cols-2 gap-2 text-[10px] md:text-xs text-gray-500 border-t border-white/5 pt-3 md:pt-4">
+                                        <div className="flex items-center gap-1.5">
+                                            <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            {course.duration}
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                                            {course.level}
+                                        </div>
+                                    </div>
+
+                                    {/* Price & Action */}
+                                    <div className="flex items-center justify-between pt-1 md:pt-2 mt-auto">
+                                        <div>
+                                            <span className="text-gray-500 text-[10px] md:text-xs">Fees</span>
+                                            <p className="text-white font-bold text-base md:text-lg">₹{course.price}</p>
+                                        </div>
+                                        <button className="bg-white text-black font-bold text-xs md:text-sm px-3 md:px-4 py-1.5 md:py-2 rounded-full hover:bg-yellow-400 transition-colors shadow-lg hover:shadow-yellow-500/20">
+                                            Enroll
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
 
-                            {/* Content */}
-                            <div className="flex-grow">
-                                <h3 className="text-lg md:text-xl font-bold text-white mb-1 md:mb-2 group-hover:text-yellow-400 transition-colors line-clamp-2">
-                                    {course.title}
-                                </h3>
-                                <p className="text-gray-400 text-xs md:text-sm leading-relaxed line-clamp-3">
-                                    {course.description}
-                                </p>
+                                {/* Hover Effect */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-yellow-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
                             </div>
-
-                            {/* Meta Info */}
-                            <div className="grid grid-cols-2 gap-2 text-[10px] md:text-xs text-gray-500 border-t border-white/5 pt-3 md:pt-4">
-                                <div className="flex items-center gap-1.5">
-                                    <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                    {course.duration}
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                                    {course.level}
-                                </div>
-                            </div>
-
-                            {/* Price & Action */}
-                            <div className="flex items-center justify-between pt-1 md:pt-2 mt-auto">
-                                <div>
-                                    <span className="text-gray-500 text-[10px] md:text-xs">Fees</span>
-                                    <p className="text-white font-bold text-base md:text-lg">₹{course.price}</p>
-                                </div>
-                                <button className="bg-white text-black font-bold text-xs md:text-sm px-3 md:px-4 py-1.5 md:py-2 rounded-full hover:bg-yellow-400 transition-colors shadow-lg hover:shadow-yellow-500/20">
-                                    Enroll
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Hover Effect */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-yellow-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                        </Link>
                     </motion.div>
                 ))}
             </AnimatePresence>
