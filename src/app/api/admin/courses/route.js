@@ -1,18 +1,16 @@
 import { NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/db";
+import { connectDB } from "@/lib/db"; // CHANGE: connectToDatabase -> connectDB
 import Course from "@/models/Course";
-import User from "@/models/User"; // Auth check ke liye (security)
+import User from "@/models/User";
 
-// Helper to check admin (Simplify kar raha hu, aap apne session logic se replace karein)
+// Helper to check admin
 async function isAdmin(req) {
-    // Yahan aapko actual session/token check lagana padega.
-    // Abhi ke liye hum assume kar rahe hain ki request header mein admin secret ya token hai.
     return true; 
 }
 
 export async function POST(req) {
   try {
-    await connectToDatabase();
+    await connectDB(); // CHANGE: connectToDatabase() -> connectDB()
     
     // Security Check
     // if (!await isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -39,16 +37,18 @@ export async function POST(req) {
 
     return NextResponse.json({ message: "Course Created", course: newCourse }, { status: 201 });
   } catch (error) {
+    console.error("Course Create Error:", error); // Debugging ke liye log add kiya
     return NextResponse.json({ error: "Server Error" }, { status: 500 });
   }
 }
 
 export async function GET() {
     try {
-        await connectToDatabase();
+        await connectDB(); // CHANGE: connectToDatabase() -> connectDB()
         const courses = await Course.find({}).sort({ createdAt: -1 });
         return NextResponse.json(courses);
     } catch (error) {
+        console.error("Course Fetch Error:", error); // Debugging ke liye log add kiya
         return NextResponse.json({ error: "Fetch failed" }, { status: 500 });
     }
 }
