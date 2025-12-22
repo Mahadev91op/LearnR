@@ -1,28 +1,24 @@
 "use client";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Edit, Trash2, Search, BookOpen, Layers } from "lucide-react";
+import { Plus, Search, BookOpen, Layers } from "lucide-react";
+import { useRouter } from "next/navigation"; // Router import kiya
 import CourseForm from "@/components/admin/CourseForm";
 
 export default function AdminCourses() {
   const [courses, setCourses] = useState([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingCourse, setEditingCourse] = useState(null);
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter(); // Initialize router
 
-  // Fetch Courses
   const fetchCourses = async () => {
     setIsLoading(true);
     try {
       const res = await fetch("/api/admin/courses");
       const data = await res.json();
-      
-      if (Array.isArray(data)) {
-        setCourses(data);
-      } else {
-        setCourses([]);
-      }
+      if (Array.isArray(data)) setCourses(data);
+      else setCourses([]);
     } catch (err) {
       console.error("Failed to load courses", err);
       setCourses([]);
@@ -35,20 +31,6 @@ export default function AdminCourses() {
     fetchCourses();
   }, []);
 
-  const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this course?")) return;
-    try {
-      const res = await fetch(`/api/admin/courses/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        fetchCourses();
-      } else {
-        alert("Failed to delete course");
-      }
-    } catch (err) {
-      alert("Error deleting course");
-    }
-  };
-
   const filteredCourses = Array.isArray(courses) ? courses.filter(c => 
     (c.title?.toLowerCase() || "").includes(search.toLowerCase()) || 
     (c.category?.toLowerCase() || "").includes(search.toLowerCase())
@@ -56,7 +38,7 @@ export default function AdminCourses() {
 
   return (
     <div className="min-h-screen bg-black text-white p-4 pb-24 md:p-6 lg:p-10 relative overflow-hidden">
-      {/* Background Decor */}
+      {/* Background Decor (Same as before) */}
       <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-0">
           <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-yellow-500/10 rounded-full blur-[100px]"></div>
           <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] bg-white/5 rounded-full blur-[100px]"></div>
@@ -74,21 +56,20 @@ export default function AdminCourses() {
             <p className="hidden md:block text-gray-400 mt-2 text-sm font-medium ml-1">Manage, Edit & Create your learning content.</p>
           </div>
           
-          {/* Desktop Create Button */}
           <motion.button 
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => { setEditingCourse(null); setIsFormOpen(true); }}
+            onClick={() => { setIsFormOpen(true); }}
             className="hidden md:flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300 text-black px-8 py-3.5 rounded-full shadow-[0_0_20px_-5px_rgba(250,204,21,0.5)] transition-all font-bold text-sm tracking-wide"
           >
             <Plus size={18} strokeWidth={3} /> CREATE COURSE
           </motion.button>
         </div>
 
-        {/* Mobile Floating Action Button (FAB) */}
+        {/* Mobile FAB */}
         <motion.button 
           whileTap={{ scale: 0.9 }}
-          onClick={() => { setEditingCourse(null); setIsFormOpen(true); }}
+          onClick={() => { setIsFormOpen(true); }}
           className="md:hidden fixed bottom-24 right-4 z-40 w-14 h-14 bg-yellow-400 text-black rounded-full shadow-[0_4px_20px_rgba(250,204,21,0.4)] flex items-center justify-center"
         >
            <Plus size={28} strokeWidth={3} />
@@ -111,7 +92,7 @@ export default function AdminCourses() {
           </div>
         </div>
 
-        {/* Courses Grid / List */}
+        {/* Courses Grid */}
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
           <AnimatePresence>
             {filteredCourses.map((course, index) => (
@@ -121,57 +102,44 @@ export default function AdminCourses() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
+                whileHover={{ y: -5, scale: 1.02 }} // Hover effect badhaya
                 transition={{ delay: index * 0.05 }}
-                className="group relative bg-[#111] border border-white/10 hover:border-yellow-400/50 rounded-2xl md:rounded-3xl overflow-hidden hover:shadow-[0_10px_40px_-10px_rgba(250,204,21,0.15)] transition-all duration-300 flex flex-row md:flex-col h-28 md:h-full"
+                onClick={() => router.push(`/admin/courses/${course._id}`)} // Redirect logic
+                className="cursor-pointer group relative bg-[#111] border border-white/10 hover:border-yellow-400/50 rounded-2xl md:rounded-3xl overflow-hidden hover:shadow-[0_10px_40px_-10px_rgba(250,204,21,0.15)] transition-all duration-300 flex flex-row md:flex-col h-28 md:h-full"
               >
                 {/* Image/Gradient Area */}
-                {/* Mobile: Small Square (w-28), Desktop: Full Header (h-40) */}
                 <div className={`w-28 md:w-full h-full md:h-40 bg-gradient-to-br ${course.gradient || 'from-gray-800 to-black'} relative p-3 md:p-6 flex flex-col justify-between group-hover:scale-105 transition-transform duration-500 flex-shrink-0`}>
-                  <div className="flex justify-between items-start">
+                  <div className="flex justify-between items-start w-full">
                      <span className="bg-black/30 backdrop-blur-md border border-white/10 px-2 py-0.5 md:px-3 md:py-1 rounded-full text-[8px] md:text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1">
                         <Layers size={8} className="md:w-[10px] md:h-[10px] text-yellow-400"/> {course.category}
                      </span>
+                     
+                     {/* Status Badges on Card */}
+                     <div className="flex gap-1">
+                        {course.isLocked && <span className="bg-red-500/20 text-red-400 p-1 rounded-full"><div className="w-2 h-2 rounded-full bg-red-500"></div></span>}
+                     </div>
                   </div>
                 </div>
                 
                 {/* Content Area */}
                 <div className="p-3 md:p-6 flex flex-col flex-1 relative bg-[#111] justify-center md:justify-start">
-                  
-                  {/* Title */}
-                  {/* Mobile: Normal Text, Desktop: Floating overlap (-mt-10) */}
                   <h3 className="text-sm md:text-xl font-bold text-white leading-tight mb-1 md:mb-3 mt-0 md:-mt-10 md:drop-shadow-lg line-clamp-2 md:line-clamp-1">
                     {course.title}
                   </h3>
                   
-                  {/* Description - Hidden on Mobile for compact look */}
                   <p className="hidden md:block text-gray-400 text-xs line-clamp-2 mb-6 flex-1">
                     {course.description}
                   </p>
 
-                  {/* Footer Stats & Actions */}
                   <div className="flex items-center justify-between pt-0 md:pt-4 md:border-t border-white/5 md:mt-auto w-full">
                      <div className="flex flex-col">
                         <span className="hidden md:block text-[10px] text-gray-500 uppercase font-bold tracking-wider">Price</span>
                         <span className="text-sm md:text-lg font-black text-yellow-400">₹{course.price}</span>
                      </div>
-                     <div className="flex gap-2">
-                        <motion.button 
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => { setEditingCourse(course); setIsFormOpen(true); }}
-                          className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/5 hover:border-white/20 transition-all"
-                        >
-                          <Edit size={14} className="md:w-[14px] md:h-[14px] w-3 h-3" />
-                        </motion.button>
-                        <motion.button 
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => handleDelete(course._id)}
-                          className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white border border-red-500/10 transition-all"
-                        >
-                          <Trash2 size={14} className="md:w-[14px] md:h-[14px] w-3 h-3" />
-                        </motion.button>
-                     </div>
+                     {/* Buttons hata diye, text dikha diya */}
+                     <span className="text-[10px] md:text-xs text-gray-600 group-hover:text-yellow-400 transition-colors flex items-center gap-1">
+                        Manage <BookOpen size={12}/>
+                     </span>
                   </div>
                 </div>
               </motion.div>
@@ -179,6 +147,7 @@ export default function AdminCourses() {
           </AnimatePresence>
         </div>
 
+        {/* Loading & Empty States */}
         {isLoading && (
             <div className="flex justify-center items-center py-20">
                 <div className="animate-spin rounded-full h-10 w-10 md:h-12 md:w-12 border-t-2 border-b-2 border-yellow-400"></div>
@@ -191,11 +160,11 @@ export default function AdminCourses() {
             </div>
         )}
 
-        {/* Form Modal */}
+        {/* Create Modal only (Edit modal ab details page par hoga) */}
         <AnimatePresence>
           {isFormOpen && (
             <CourseForm 
-              existingData={editingCourse} 
+              existingData={null} 
               onClose={() => setIsFormOpen(false)} 
               onRefresh={fetchCourses} 
             />
