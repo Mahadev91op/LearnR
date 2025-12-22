@@ -10,8 +10,9 @@ const UserSchema = new mongoose.Schema(
     classLevel: { type: String, required: true }, 
     password: { type: String, required: true },
     role: { type: String, default: "student" },
-    // Yahan courses ka field add kiya gaya hai
     courses: [{ type: mongoose.Schema.Types.ObjectId, ref: "Course" }],
+    // New Field for Account Status
+    isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
