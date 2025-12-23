@@ -2,9 +2,57 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { useAuth } from "@/components/shared/AuthContext"; // AuthContext import kiya
 
 export default function CourseDetails({ course }) {
   const [activeTab, setActiveTab] = useState("overview");
+  
+  // --- NEW STATE FOR PAYMENT MODAL ---
+  const { user } = useAuth();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+
+  // --- PAYMENT HANDLER (New Functionality) ---
+  const handlePayment = async () => {
+    if (!user) {
+      alert("Please login to enroll!");
+      return; // Agar user login nahi hai to rok do
+    }
+
+    setPaymentLoading(true);
+    
+    // 1. Fake Payment Delay (Simulation)
+    await new Promise(r => setTimeout(r, 2000));
+
+    try {
+       // 2. Call API to create enrollment request
+       const res = await fetch("/api/enroll", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+             userId: user._id, 
+             courseId: course._id,
+             amount: course.price,
+             // Fake Transaction ID generate kar rahe hain
+             transactionId: "TXN_" + Math.random().toString(36).substr(2, 9).toUpperCase()
+          })
+       });
+
+       const data = await res.json();
+
+       if(res.ok) {
+         alert("Payment Successful! Request sent to Admin.");
+         setShowPaymentModal(false);
+       } else {
+         alert(data.error || "Enrollment failed");
+       }
+    } catch(err) {
+       console.error(err);
+       alert("Error processing enrollment");
+    } finally {
+       setPaymentLoading(false);
+    }
+  };
 
   // --- ICONS FOR MOBILE TABS (SVG) ---
   const tabIcons = {
@@ -57,7 +105,6 @@ export default function CourseDetails({ course }) {
     <div className="relative min-h-screen bg-black pb-24 font-sans selection:bg-yellow-500/30 overflow-x-hidden">
       
       {/* --- DYNAMIC BACKGROUND GLOW (OPTIMIZED FOR MOBILE) --- */}
-      {/* Changes: Added 'transform-gpu' and reduced blur on mobile to fix lag */}
       <div className="fixed inset-0 pointer-events-none z-0">
           <div className={`absolute top-[-20%] left-[-20%] w-[800px] h-[800px] rounded-full mix-blend-screen blur-[80px] md:blur-[150px] opacity-15 bg-gradient-to-br ${course.gradient || 'from-yellow-500 to-orange-500'} transform-gpu will-change-transform`}></div>
           <div className={`absolute bottom-[-20%] right-[-20%] w-[600px] h-[600px] rounded-full mix-blend-screen blur-[80px] md:blur-[150px] opacity-10 bg-gradient-to-tl ${course.gradient || 'from-yellow-500 to-orange-500'} transform-gpu will-change-transform`}></div>
@@ -140,7 +187,6 @@ export default function CourseDetails({ course }) {
             <div className="lg:col-span-2">
                
                {/* CUSTOM TAB NAVIGATION */}
-               {/* Optimization: Reduced backdrop blur on mobile to prevent scroll lag */}
                <div className="sticky top-20 z-40 bg-black/90 backdrop-blur-md md:backdrop-blur-xl border-b border-white/10 mb-6 md:mb-8 -mx-4 px-4 md:mx-0 md:px-0 md:rounded-xl md:border md:top-24 shadow-lg md:shadow-none transition-all">
                  <div className="flex justify-between md:justify-start md:overflow-x-auto md:no-scrollbar">
                    {tabs.map((tab) => (
@@ -326,8 +372,11 @@ export default function CourseDetails({ course }) {
                             <span className="text-gray-500 text-xs md:text-sm font-medium">/ month</span>
                         </div>
 
-                        {/* Animated Button */}
-                        <button className="group relative w-full overflow-hidden rounded-xl bg-yellow-500 p-3 md:p-4 transition-all hover:bg-yellow-400 active:scale-[0.98] shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:shadow-[0_0_30px_rgba(234,179,8,0.5)] mb-5 md:mb-6 transform-gpu">
+                        {/* Animated Button (Updated to Open Modal) */}
+                        <button 
+                            onClick={() => setShowPaymentModal(true)} 
+                            className="group relative w-full overflow-hidden rounded-xl bg-yellow-500 p-3 md:p-4 transition-all hover:bg-yellow-400 active:scale-[0.98] shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:shadow-[0_0_30px_rgba(234,179,8,0.5)] mb-5 md:mb-6 transform-gpu"
+                        >
                            <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/30 to-transparent z-10"></div>
                            <span className="relative z-20 text-black font-black text-base md:text-lg uppercase tracking-wide flex items-center justify-center gap-2">
                              Enroll Now 
@@ -374,6 +423,69 @@ export default function CourseDetails({ course }) {
 
         </div>
       </section>
+
+      {/* --- PAYMENT MODAL (NEW ADDITION WITH SAME DESIGN LANGUAGE) --- */}
+      <AnimatePresence>
+        {showPaymentModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+             <motion.div 
+               initial={{ opacity: 0, scale: 0.9 }} 
+               animate={{ opacity: 1, scale: 1 }} 
+               exit={{ opacity: 0, scale: 0.9 }}
+               className="bg-[#111] border border-white/10 w-full max-w-md rounded-3xl p-6 shadow-2xl relative overflow-hidden"
+             >
+                {/* Decorative Blob */}
+                <div className="absolute top-[-50px] right-[-50px] w-40 h-40 bg-yellow-500/10 rounded-full blur-[50px] pointer-events-none"></div>
+
+                {/* Close Button */}
+                <button 
+                    onClick={() => setShowPaymentModal(false)} 
+                    className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+                >
+                    ✕
+                </button>
+
+                <h2 className="text-2xl font-bold text-white mb-2">Confirm Enrollment</h2>
+                <p className="text-gray-400 text-sm mb-6">You are enrolling in <span className="text-yellow-500 font-bold">{course.title}</span></p>
+
+                <div className="bg-white/5 rounded-xl p-4 mb-6 border border-white/5">
+                   <div className="flex justify-between text-sm mb-2">
+                      <span className="text-gray-400">Course Fee</span>
+                      <span className="text-white">₹{course.price}</span>
+                   </div>
+                   <div className="flex justify-between text-sm font-bold text-yellow-500 pt-2 border-t border-white/10">
+                      <span>Total Payable</span>
+                      <span>₹{course.price}</span>
+                   </div>
+                </div>
+
+                <div className="space-y-3">
+                    <button 
+                      onClick={handlePayment} 
+                      disabled={paymentLoading}
+                      className="w-full bg-green-500 hover:bg-green-400 text-black font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(34,197,94,0.3)]"
+                    >
+                       {paymentLoading ? (
+                          <div className="flex items-center gap-2">
+                              <svg className="animate-spin h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Processing...
+                          </div>
+                       ) : (
+                          <>Pay & Join <span className="text-lg">➔</span></>
+                       )}
+                    </button>
+                    <p className="text-center text-[10px] text-gray-500">
+                        By clicking pay, you agree to our Terms & Conditions.
+                    </p>
+                </div>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
