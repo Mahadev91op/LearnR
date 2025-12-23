@@ -8,30 +8,48 @@ export default function Dashboard() {
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // FIX: Live Update Logic (Polling)
+  // Live Update Logic (Polling) with Cache Busting
   useEffect(() => {
-    // Pehli baar data layein
     fetchEnrollments();
 
-    // Har 5 second mein data refresh karein (Live Update)
     const interval = setInterval(() => {
-      fetchEnrollments(true); // 'true' means background update (loading spinner mat dikhao)
+      fetchEnrollments(true); 
     }, 5000);
 
-    // Cleanup (Jab user page se hat jaye to band kardo)
     return () => clearInterval(interval);
   }, []);
 
   const fetchEnrollments = async (isBackground = false) => {
     try {
-      // Background updates me loading mat dikhao taaki flicker na ho
       if (!isBackground) setLoading(true);
 
-      // FIX: 'no-store' se browser cache ignore karega
-      const res = await fetch("/api/user/enrollments", { cache: "no-store" });
+      // URL me time jodkar browser cache ko bypass karein
+      const timestamp = Date.now();
+      const res = await fetch(`/api/user/enrollments?t=${timestamp}`, { 
+          cache: "no-store",
+          headers: { 
+            'Pragma': 'no-cache',
+            'Cache-Control': 'no-cache'
+          }
+      });
+      
       const data = await res.json();
       
-      setEnrollments(data.enrollments || []);
+      // Safety: Client side par bhi duplicate hata dein (Just in case)
+      const rawList = data.enrollments || [];
+      const uniqueList = [];
+      const map = new Map();
+      
+      for (const item of rawList) {
+          if(!item.course) continue;
+          if(!map.has(item.course._id)){
+              map.set(item.course._id, true); // set any value to Map
+              uniqueList.push(item);
+          }
+      }
+
+      setEnrollments(uniqueList);
+
     } catch (error) {
       console.error("Failed to load courses", error);
     } finally {
@@ -104,7 +122,7 @@ export default function Dashboard() {
 
               return (
                 <motion.div
-                  key={enrollment._id}
+                  key={enrollment._id} // Using enrollment ID is fine, logic ensures course is unique
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}

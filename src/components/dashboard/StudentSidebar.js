@@ -9,7 +9,6 @@ export default function StudentSidebar() {
   const pathname = usePathname();
   const { logout } = useAuth();
 
-  // "My Courses" tab hata diya gaya hai jaisa aapne kaha
   const menuItems = [
     { name: "Overview", icon: LayoutDashboard, path: "/dashboard" },
     { name: "Profile", icon: User, path: "/profile" },
@@ -17,7 +16,7 @@ export default function StudentSidebar() {
 
   return (
     <>
-      {/* Desktop Sidebar */}
+      {/* Desktop Sidebar (No Changes - Same as before) */}
       <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 bg-[#0a0a0a] border-r border-white/10 z-40">
         {/* Logo Area */}
         <div className="p-6 border-b border-white/5">
@@ -58,7 +57,7 @@ export default function StudentSidebar() {
           })}
         </nav>
 
-        {/* Bottom Actions - Back to Home Added Here */}
+        {/* Bottom Actions */}
         <div className="p-4 border-t border-white/5 space-y-2">
           <Link href="/" className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-all group">
             <Home size={20} className="group-hover:text-blue-400 transition-colors" />
@@ -75,21 +74,26 @@ export default function StudentSidebar() {
         </div>
       </aside>
 
-      {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-xl border-t border-white/10 z-50 px-6 py-4 flex justify-between items-center">
+      {/* Mobile Bottom Nav (App-like Compact Design) */}
+      {/* UPDATE: Padding reduced (py-2), darker background, and shadow for 'App' feel */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#050505] border-t border-white/10 z-50 px-8 py-3 pb-5 flex justify-between items-center shadow-[0_-10px_40px_rgba(0,0,0,0.8)]">
         {menuItems.map((item) => {
              const isActive = pathname === item.path;
              return (
-              <Link key={item.path} href={item.path} className={`flex flex-col items-center gap-1 ${isActive ? "text-yellow-400" : "text-gray-500"}`}>
-                  <item.icon size={24} />
-                  <span className="text-[10px] font-medium">{item.name}</span>
+              <Link key={item.path} href={item.path} className={`flex flex-col items-center gap-1 transition-all active:scale-90 ${isActive ? "text-yellow-400" : "text-gray-600 hover:text-gray-400"}`}>
+                  <div className={`p-1 rounded-full ${isActive ? "bg-yellow-400/10" : ""}`}>
+                    <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                  </div>
+                  <span className="text-[10px] font-medium tracking-wide">{item.name}</span>
               </Link>
              )
         })}
          {/* Mobile Home Button */}
-         <Link href="/" className="flex flex-col items-center gap-1 text-gray-500 hover:text-white">
-            <Home size={24} />
-            <span className="text-[10px] font-medium">Home</span>
+         <Link href="/" className="flex flex-col items-center gap-1 text-gray-600 hover:text-gray-400 active:scale-90 transition-all">
+            <div className="p-1">
+              <Home size={22} strokeWidth={2} />
+            </div>
+            <span className="text-[10px] font-medium tracking-wide">Home</span>
          </Link>
       </div>
     </>

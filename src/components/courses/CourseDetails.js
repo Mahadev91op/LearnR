@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; // Added for redirection
+import { useRouter } from "next/navigation"; 
 import { useAuth } from "@/components/shared/AuthContext";
 import Script from "next/script";
 
@@ -14,15 +14,22 @@ export default function CourseDetails({ course }) {
   const { user } = useAuth();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
-  const [isEnrolled, setIsEnrolled] = useState(false); // NEW: Track Enrollment Status
+  const [isEnrolled, setIsEnrolled] = useState(false); 
 
   // --- NEW: CHECK ENROLLMENT STATUS ON LOAD ---
   useEffect(() => {
     const checkStatus = async () => {
       if (!user || !course) return;
       try {
-        // No-store cache ensures we get fresh data
-        const res = await fetch("/api/user/enrollments", { cache: "no-store" });
+        // FIX: URL me Timestamp add kiya taaki browser hamesha fresh data laye
+        const timestamp = Date.now();
+        const res = await fetch(`/api/user/enrollments?t=${timestamp}`, { 
+            cache: "no-store",
+            headers: {
+                'Pragma': 'no-cache',
+                'Cache-Control': 'no-cache'
+            }
+        });
         const data = await res.json();
         
         if (data.enrollments) {
@@ -30,7 +37,7 @@ export default function CourseDetails({ course }) {
           const found = data.enrollments.some(
             (enrollment) => enrollment.course._id === course._id
           );
-          if (found) setIsEnrolled(true);
+          setIsEnrolled(found); // Update status correctly
         }
       } catch (error) {
         console.error("Error checking enrollment:", error);
@@ -47,7 +54,6 @@ export default function CourseDetails({ course }) {
       return;
     }
 
-    // Safety check just in case
     if (isEnrolled) {
         router.push("/dashboard");
         return;
@@ -60,10 +66,8 @@ export default function CourseDetails({ course }) {
       // OPTION 2: TEMPORARY BYPASS (DIRECT ENROLLMENT)
       // ============================================================
       
-      // Simulate network delay for better UX
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      // Fake Payment Data generate kar rahe hain
       const fakePaymentData = {
         razorpay_order_id: "order_bypass_" + Date.now(),
         razorpay_payment_id: "pay_bypass_" + Date.now(),
@@ -73,7 +77,6 @@ export default function CourseDetails({ course }) {
         amount: course.price
       };
 
-      // Seedha verification API call karein
       const verifyRes = await fetch("/api/payment/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -83,9 +86,9 @@ export default function CourseDetails({ course }) {
       const verifyData = await verifyRes.json();
       if (verifyRes.ok) {
         alert("Enrollment Successful! (Payment Bypassed)");
-        setIsEnrolled(true); // Update UI immediately
+        setIsEnrolled(true); 
         setShowPaymentModal(false);
-        router.push("/dashboard"); // Redirect to Dashboard
+        router.push("/dashboard"); 
       } else {
         alert("Enrollment Failed: " + verifyData.error);
       }
@@ -98,7 +101,7 @@ export default function CourseDetails({ course }) {
     }
   };
 
-  // --- ICONS & REST OF THE COMPONENT (No Changes Needed Below) ---
+  // --- ICONS & REST OF THE COMPONENT ---
   const tabIcons = {
     overview: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -117,7 +120,6 @@ export default function CourseDetails({ course }) {
     )
   };
 
-  // --- FAKE DATA ---
   const syllabus = [
     { title: "Introduction & Basics", topics: ["Understanding Grammar", "Sentence Structure", "Parts of Speech"] },
     { title: "Advanced Concepts", topics: ["Active vs Passive Voice", "Direct Indirect Speech", "Tenses Mastery"] },
@@ -147,7 +149,6 @@ export default function CourseDetails({ course }) {
 
   return (
     <div className="relative min-h-screen bg-black pb-24 font-sans selection:bg-yellow-500/30 overflow-x-hidden">
-      {/* Script for Razorpay (Abhi use nahi ho raha, par rehne do future ke liye) */}
       <Script src="https://checkout.razorpay.com/v1/checkout.js" />
       
       <div className="fixed inset-0 pointer-events-none z-0">

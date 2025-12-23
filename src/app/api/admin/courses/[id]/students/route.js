@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 import Course from "@/models/Course";
+import Enrollment from "@/models/Enrollment"; // FIX: Enrollment model import kiya
 import nodemailer from "nodemailer";
 
-// 1. Get Enrolled Students List
+// 1. Get Enrolled Students List (No Change)
 export async function GET(req, { params }) {
   try {
     await connectDB();
@@ -16,7 +17,7 @@ export async function GET(req, { params }) {
   }
 }
 
-// 2. Add Student (Manual Enroll)
+// 2. Add Student (Manual Enroll) (No Change)
 export async function POST(req, { params }) {
   try {
     await connectDB();
@@ -34,6 +35,9 @@ export async function POST(req, { params }) {
 
     user.courses.push(id);
     await user.save();
+    
+    // Note: Agar aap chahein to manual add par bhi Enrollment create kar sakte hain, 
+    // par abhi ke liye existing logic theek hai.
 
     const course = await Course.findByIdAndUpdate(id, { $inc: { students: 1 } }, { new: true });
 
@@ -80,9 +84,12 @@ export async function DELETE(req, { params }) {
 
     if (!user || !course) return NextResponse.json({ error: "User or Course not found" }, { status: 404 });
 
-    // Step 2: Remove from Database
+    // Step 2: Remove from User & Course Models
     await User.findByIdAndUpdate(studentId, { $pull: { courses: id } });
     await Course.findByIdAndUpdate(id, { $inc: { students: -1 } });
+
+    // FIX: Enrollment collection se bhi record udaa dein
+    await Enrollment.findOneAndDelete({ user: studentId, course: id });
 
     // Step 3: Send Removal Email
     try {

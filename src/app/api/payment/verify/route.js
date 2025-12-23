@@ -39,7 +39,21 @@ export async function POST(req) {
     // OPTION 2: BYPASS VERIFICATION (TEMPORARY)
     // ============================================================
     console.log("BYPASS MODE: Skipping Razorpay signature verification.");
-    // Fake IDs will be accepted here.
+    
+    // FIX START: Check Duplicate Enrollment
+    // Pehle check karein ki user already enrolled hai ya nahi (Pending ho ya Approved)
+    const existingEnrollment = await Enrollment.findOne({
+      user: userId,
+      course: courseId
+    });
+
+    if (existingEnrollment) {
+      return NextResponse.json(
+        { error: "Enrollment already exists! Please check your dashboard." },
+        { status: 400 }
+      );
+    }
+    // FIX END
 
     // 2. Payment Verified -> Save Enrollment (Pending)
     const newEnrollment = await Enrollment.create({
