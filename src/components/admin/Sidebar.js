@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { LayoutDashboard, BookOpen, Users, Settings, LogOut, Home } from "lucide-react"; // Home icon add kiya
+import { LayoutDashboard, BookOpen, Users, LogOut, Home, MonitorPlay } from "lucide-react";
 import { useAuth } from "@/components/shared/AuthContext";
 
 export default function Sidebar() {
@@ -13,17 +13,15 @@ export default function Sidebar() {
     { name: "Overview", icon: LayoutDashboard, path: "/admin" },
     { name: "Courses", icon: BookOpen, path: "/admin/courses" },
     { name: "Students", icon: Users, path: "/admin/students" },
-    { name: "Settings", icon: Settings, path: "/admin/settings" },
+    { name: "Classroom", icon: MonitorPlay, path: "/admin/classroom" },
   ];
 
   return (
     <>
       {/* =======================
           1. DESKTOP SIDEBAR 
-          (Hidden on Mobile, Visible on MD+) - Same as before
          ======================= */}
       <div className="hidden md:flex h-screen w-64 bg-[#0a0a0a] border-r border-white/10 flex-col fixed left-0 top-0 z-50">
-        {/* Logo Area */}
         <div className="p-8">
           <Link href="/" className="group block">
               <h1 className="text-2xl font-black text-white tracking-tighter transition-opacity group-hover:opacity-80">
@@ -33,10 +31,13 @@ export default function Sidebar() {
           </Link>
         </div>
 
-        {/* Menu Items */}
         <div className="flex-1 px-4 space-y-2">
           {menuItems.map((item) => {
-            const isActive = pathname === item.path;
+            // FIX: Overview ke liye exact match, baakiyon ke liye startsWith
+            const isActive = item.path === "/admin" 
+              ? pathname === "/admin" 
+              : pathname.startsWith(item.path);
+
             return (
               <Link key={item.name} href={item.path} className="block relative group">
                 {isActive && (
@@ -57,7 +58,6 @@ export default function Sidebar() {
           })}
         </div>
 
-        {/* Logout Section (Desktop only) */}
         <div className="p-4 border-t border-white/10">
           <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all group">
             <LogOut size={20} />
@@ -68,12 +68,15 @@ export default function Sidebar() {
 
       {/* =======================
           2. MOBILE BOTTOM NAV 
-          (Visible on Mobile, Hidden on MD+)
          ======================= */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-white/10 z-50 pb-safe">
         <div className="flex justify-around items-center h-16 px-2">
           {menuItems.map((item) => {
-            const isActive = pathname === item.path;
+             // FIX: Same logic for mobile
+             const isActive = item.path === "/admin" 
+               ? pathname === "/admin" 
+               : pathname.startsWith(item.path);
+
             return (
               <Link key={item.name} href={item.path} className="relative flex flex-col items-center justify-center w-full h-full space-y-1">
                  {isActive && (
@@ -90,7 +93,6 @@ export default function Sidebar() {
             );
           })}
           
-          {/* Mobile Home Button (Replaced Logout) */}
           <Link href="/" className="flex flex-col items-center justify-center w-full h-full space-y-1 text-gray-500 active:text-white">
              <Home size={22} />
              <span className="text-[10px] font-medium">Home</span>
