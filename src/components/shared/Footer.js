@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // --- COMPONENTS ---
 
@@ -33,7 +33,7 @@ const FooterLink = ({ href, children }) => (
   </li>
 );
 
-// 3. Mobile Accordion Item (New for App-like feel)
+// 3. Mobile Accordion Item
 const MobileAccordion = ({ title, children }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -74,10 +74,20 @@ const MobileAccordion = ({ title, children }) => {
 export default function Footer() {
   const pathname = usePathname();
   const currentYear = new Date().getFullYear();
+  // Safe logic for conditional rendering
+  const [shouldRender, setShouldRender] = useState(false);
 
-  // LOGIC UPDATE: Footer sirf Homepage ('/') par dikhega.
-  // Baaki sabhi pages (Login, Signup, Profile, Courses, etc.) par null return karega.
-  if (pathname !== "/") {
+  useEffect(() => {
+     // Check pathname on client side to avoid Hydration Mismatch
+     if (pathname === "/") {
+         setShouldRender(true);
+     } else {
+         setShouldRender(false);
+     }
+  }, [pathname]);
+
+  // Agar Homepage nahi hai, toh kuch return mat karo
+  if (!shouldRender && pathname !== "/") {
     return null;
   }
 
@@ -101,13 +111,13 @@ export default function Footer() {
         <div className="hidden md:grid grid-cols-1 md:grid-cols-12 gap-12 lg:gap-8 mb-16">
             
             {/* Brand Section */}
-            <motion.div initial="hidden" whileInView="visible" variants={containerVariants} className="md:col-span-4 space-y-6">
+            <motion.div initial="hidden" whileInView="visible" variants={containerVariants} className="md:col-span-3 space-y-6">
               <Link href="/" className="flex items-center gap-2 group">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-black font-bold text-xl shadow-[0_0_20px_-5px_rgba(234,179,8,0.5)] group-hover:scale-105 transition-transform">L</div>
                 <span className="text-2xl font-bold text-white tracking-tighter">Learn<span className="text-yellow-500">R</span></span>
               </Link>
               <p className="text-gray-400 text-sm leading-relaxed max-w-sm">
-                Empowering students with smart, data-driven English education. Join the revolution and master the language.
+                Empowering students with smart, data-driven English education. Join the revolution.
               </p>
               <div className="flex gap-4 pt-2">
                 <SocialIconsGroup />
@@ -129,8 +139,16 @@ export default function Footer() {
               </ul>
             </motion.div>
 
+            {/* Legal Section */}
+            <motion.div initial="hidden" whileInView="visible" variants={containerVariants} className="md:col-span-2 space-y-4">
+              <h3 className="text-white font-bold text-lg tracking-wide">Legal</h3>
+              <ul className="space-y-3">
+                <LegalLinksList />
+              </ul>
+            </motion.div>
+
             {/* Newsletter Section */}
-            <motion.div initial="hidden" whileInView="visible" variants={containerVariants} className="md:col-span-4 space-y-4">
+            <motion.div initial="hidden" whileInView="visible" variants={containerVariants} className="md:col-span-3 space-y-4">
                <h3 className="text-white font-bold text-lg tracking-wide">Stay Updated</h3>
                <NewsletterForm />
             </motion.div>
@@ -150,13 +168,13 @@ export default function Footer() {
                 </Link>
             </div>
 
-            {/* 2. Newsletter (High Priority) */}
+            {/* 2. Newsletter */}
             <div className="mb-8 bg-white/5 p-4 rounded-2xl border border-white/10">
                 <p className="text-xs text-gray-400 mb-3 uppercase tracking-wider font-bold">Subscribe to Newsletter</p>
                 <NewsletterForm mobile />
             </div>
 
-            {/* 3. Collapsible Menus (App Style) */}
+            {/* 3. Collapsible Menus */}
             <div className="border-t border-white/10 mb-8">
                 <MobileAccordion title="Platform">
                     <FooterLinksList />
@@ -165,19 +183,18 @@ export default function Footer() {
                     <ResourceLinksList />
                 </MobileAccordion>
                 <MobileAccordion title="Legal">
-                     <FooterLink href="/privacy">Privacy Policy</FooterLink>
-                     <FooterLink href="/terms">Terms of Service</FooterLink>
+                     <LegalLinksList />
                 </MobileAccordion>
             </div>
 
-            {/* 4. Socials (Centered) */}
+            {/* 4. Socials */}
             <div className="flex justify-center gap-4 mb-8">
                 <SocialIconsGroup />
             </div>
         </div>
 
 
-        {/* Divider & Copyright (Shared) */}
+        {/* Divider & Copyright */}
         <motion.div 
           initial={{ scaleX: 0 }}
           whileInView={{ scaleX: 1 }}
@@ -186,10 +203,11 @@ export default function Footer() {
         ></motion.div>
 
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-500 text-center md:text-left">
-          <p>© {currentYear} DevSamp Agency. All rights reserved.</p>
+          <p>© {currentYear} LearnR Education. All rights reserved.</p>
           <div className="hidden md:flex gap-6">
-            <Link href="/privacy" className="hover:text-yellow-500 transition-colors">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-yellow-500 transition-colors">Terms of Service</Link>
+            <Link href="/privacy" className="hover:text-yellow-500 transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-yellow-500 transition-colors">Terms</Link>
+            <Link href="/contact" className="hover:text-yellow-500 transition-colors">Contact</Link>
           </div>
         </div>
 
@@ -198,7 +216,7 @@ export default function Footer() {
   );
 }
 
-// --- HELPER SUB-COMPONENTS (To avoid code duplication) ---
+// --- HELPER SUB-COMPONENTS ---
 
 function SocialIconsGroup() {
     return (
@@ -228,6 +246,18 @@ function ResourceLinksList() {
             <FooterLink href="/blog">Blog</FooterLink>
             <FooterLink href="/community">Community</FooterLink>
             <FooterLink href="/help">Help Center</FooterLink>
+        </>
+    )
+}
+
+function LegalLinksList() {
+    return (
+        <>
+            <FooterLink href="/privacy">Privacy Policy</FooterLink>
+            <FooterLink href="/terms">Terms of Service</FooterLink>
+            <FooterLink href="/refund">Refund Policy</FooterLink>
+            <FooterLink href="/shipping">Shipping Policy</FooterLink>
+            <FooterLink href="/contact">Contact Us</FooterLink>
         </>
     )
 }
