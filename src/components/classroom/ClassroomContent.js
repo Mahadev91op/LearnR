@@ -3,6 +3,9 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Mic, MicOff, Video as VideoIcon, VideoOff, MonitorUp, Users, Send, Book, File } from "lucide-react";
 
+// Import the new NoticeBoard component
+import NoticeBoard from "./NoticeBoard"; 
+
 // 1. OVERVIEW TAB
 const OverviewTab = ({ course }) => (
   <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -108,15 +111,25 @@ const GenericListTab = ({ type, data }) => (
 
 // MAIN EXPORT
 export default function ClassroomContent({ activeTab, courseData }) {
+  // Extract course ID safely
+  const courseId = courseData?._id;
+
+  // IMPORTANT: Since you are using this in the Admin Panel, we set isAdmin to true.
+  // If you use this component for students later, you should pass this as a prop.
+  const isAdmin = true;
+
   switch (activeTab) {
     case "overview": return <OverviewTab course={courseData} />;
     case "live": return <LiveTab />;
+    
+    // Updated Notice Board Integration
+    case "notices": return <NoticeBoard courseId={courseId} isAdmin={isAdmin} />;
+
     case "lectures": return <GenericListTab type="lectures" data={[]} />;
     case "materials": return <GenericListTab type="materials" data={[]} />;
     case "syllabus": return <GenericListTab type="syllabus" data={[]} />;
     case "assignments": return <GenericListTab type="assignments" data={[]} />;
     case "tests": return <GenericListTab type="tests" data={[]} />;
-    case "notices": return <GenericListTab type="notices" data={[]} />;
     default: return <div className="p-10 text-center text-gray-500">Tab Under Construction</div>;
   }
 }
