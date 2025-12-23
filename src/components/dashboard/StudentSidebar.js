@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Home, User, LogOut, LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, BookOpen, MonitorPlay, User, Settings, LogOut, Home } from "lucide-react";
 import { useAuth } from "@/components/shared/AuthContext";
 
 export default function StudentSidebar() {
@@ -10,91 +10,83 @@ export default function StudentSidebar() {
   const { logout } = useAuth();
 
   const menuItems = [
-    { name: "Overview", icon: LayoutDashboard, path: "/dashboard" },
+    { name: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+    { name: "My Courses", icon: BookOpen, path: "/dashboard/courses" },
+    { name: "Classroom", icon: MonitorPlay, path: "/dashboard/classroom" }, // New Tab
     { name: "Profile", icon: User, path: "/profile" },
+    // { name: "Settings", icon: Settings, path: "/dashboard/settings" },
   ];
 
   return (
     <>
-      {/* Desktop Sidebar (No Changes - Same as before) */}
-      <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 bg-[#0a0a0a] border-r border-white/10 z-40">
-        {/* Logo Area */}
-        <div className="p-6 border-b border-white/5">
-          <Link href="/" className="flex items-center gap-1 group">
-            <span className="font-black text-white text-2xl tracking-tighter">
+      {/* Desktop Sidebar */}
+      <div className="hidden md:flex h-screen w-64 bg-[#0a0a0a] border-r border-white/10 flex-col fixed left-0 top-0 z-50">
+        <div className="p-8">
+          <Link href="/" className="group block">
+              <h1 className="text-2xl font-black text-white tracking-tighter">
               Learn<span className="text-yellow-400">R</span>
-            </span>
-            <span className="text-[10px] bg-white/10 text-gray-400 px-2 py-0.5 rounded ml-2 uppercase tracking-wide">
-              Student
-            </span>
+              </h1>
           </Link>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto custom-scrollbar">
+        <div className="flex-1 px-4 space-y-2">
           {menuItems.map((item) => {
-            const isActive = pathname === item.path;
+            const isActive = item.path === "/dashboard" 
+              ? pathname === "/dashboard" 
+              : pathname.startsWith(item.path);
+
             return (
-              <Link key={item.path} href={item.path}>
-                <div
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group ${
-                    isActive
-                      ? "bg-yellow-400 text-black font-bold shadow-[0_0_20px_rgba(250,204,21,0.3)]"
-                      : "text-gray-400 hover:bg-white/5 hover:text-white"
-                  }`}
-                >
-                  <item.icon size={20} className={isActive ? "text-black" : "group-hover:text-yellow-400 transition-colors"} />
-                  <span>{item.name}</span>
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeIndicator"
-                      className="ml-auto w-1.5 h-1.5 rounded-full bg-black"
-                    />
-                  )}
+              <Link key={item.name} href={item.path} className="block relative group">
+                {isActive && (
+                  <motion.div
+                    layoutId="activeTabStudent"
+                    className="absolute inset-0 bg-gradient-to-r from-yellow-400/20 to-transparent rounded-xl border-l-4 border-yellow-400"
+                  />
+                )}
+                <div className={`relative flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 ${isActive ? "text-yellow-400 font-bold" : "text-gray-400 group-hover:text-white group-hover:bg-white/5"}`}>
+                  <item.icon size={20} className={isActive ? "text-yellow-400" : "text-gray-500 group-hover:text-white"} />
+                  <span className="text-sm tracking-wide">{item.name}</span>
                 </div>
               </Link>
             );
           })}
-        </nav>
+        </div>
 
-        {/* Bottom Actions */}
-        <div className="p-4 border-t border-white/5 space-y-2">
-          <Link href="/" className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-all group">
-            <Home size={20} className="group-hover:text-blue-400 transition-colors" />
-            <span>Back to Home</span>
-          </Link>
-          
-          <button
-            onClick={logout}
-            className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-xl transition-all"
-          >
+        <div className="p-4 border-t border-white/10">
+          <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all group">
             <LogOut size={20} />
-            <span>Sign Out</span>
+            <span className="text-sm font-bold">Logout</span>
           </button>
         </div>
-      </aside>
+      </div>
 
-      {/* Mobile Bottom Nav (App-like Compact Design) */}
-      {/* UPDATE: Padding reduced (py-2), darker background, and shadow for 'App' feel */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#050505] border-t border-white/10 z-50 px-8 py-3 pb-5 flex justify-between items-center shadow-[0_-10px_40px_rgba(0,0,0,0.8)]">
-        {menuItems.map((item) => {
-             const isActive = pathname === item.path;
-             return (
-              <Link key={item.path} href={item.path} className={`flex flex-col items-center gap-1 transition-all active:scale-90 ${isActive ? "text-yellow-400" : "text-gray-600 hover:text-gray-400"}`}>
-                  <div className={`p-1 rounded-full ${isActive ? "bg-yellow-400/10" : ""}`}>
-                    <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-                  </div>
-                  <span className="text-[10px] font-medium tracking-wide">{item.name}</span>
+      {/* Mobile Bottom Nav */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-white/10 z-50 pb-safe">
+        <div className="flex justify-around items-center h-16 px-2">
+          {menuItems.slice(0, 4).map((item) => {
+            const isActive = item.path === "/dashboard" 
+               ? pathname === "/dashboard" 
+               : pathname.startsWith(item.path);
+            return (
+              <Link key={item.name} href={item.path} className="relative flex flex-col items-center justify-center w-full h-full space-y-1">
+                 {isActive && (
+                    <motion.div 
+                      layoutId="activeTabMobileStudent"
+                      className="absolute -top-[1px] w-12 h-1 bg-yellow-400 rounded-b-lg"
+                    />
+                 )}
+                 <item.icon size={22} className={`transition-colors duration-300 ${isActive ? "text-yellow-400" : "text-gray-500"}`} />
+                 <span className={`text-[10px] font-medium transition-colors duration-300 ${isActive ? "text-yellow-400" : "text-gray-600"}`}>
+                   {item.name}
+                 </span>
               </Link>
-             )
-        })}
-         {/* Mobile Home Button */}
-         <Link href="/" className="flex flex-col items-center gap-1 text-gray-600 hover:text-gray-400 active:scale-90 transition-all">
-            <div className="p-1">
-              <Home size={22} strokeWidth={2} />
-            </div>
-            <span className="text-[10px] font-medium tracking-wide">Home</span>
-         </Link>
+            );
+          })}
+          <Link href="/" className="flex flex-col items-center justify-center w-full h-full space-y-1 text-gray-500 active:text-white">
+             <Home size={22} />
+             <span className="text-[10px] font-medium">Home</span>
+          </Link>
+        </div>
       </div>
     </>
   );
