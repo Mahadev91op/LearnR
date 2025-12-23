@@ -2,13 +2,16 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { PlayCircle, Clock, BookOpen, Trophy } from "lucide-react";
+import { useRouter } from "next/navigation"; // Router add kiya redirect ke liye
+import { PlayCircle, Clock, BookOpen, Trophy, AlertCircle } from "lucide-react";
 
 export default function Dashboard() {
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null); // Error state add kiya
+  const router = useRouter();
 
-  // Live Update Logic (Polling) with Cache Busting
+  // Live Update Logic
   useEffect(() => {
     fetchEnrollments();
 
@@ -23,8 +26,9 @@ export default function Dashboard() {
     try {
       if (!isBackground) setLoading(true);
 
-      // URL me time jodkar browser cache ko bypass karein
       const timestamp = Date.now();
+      
+      // API call
       const res = await fetch(`/api/user/enrollments?t=${timestamp}`, { 
           cache: "no-store",
           headers: { 
@@ -33,9 +37,22 @@ export default function Dashboard() {
           }
       });
       
+      // FIX: Agar User Logged In nahi hai (401 Error), to Login par bhejein
+      if (res.status === 401) {
+        console.log("Session expired, redirecting to login...");
+        router.push("/login"); 
+        return;
+      }
+
+      // FIX: Agar koi aur Server Error (500) hai to detail dekhein
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Error ${res.status}: ${errorText}`);
+      }
+
       const data = await res.json();
       
-      // Safety: Client side par bhi duplicate hata dein (Just in case)
+      // Duplicate Filtering Logic
       const rawList = data.enrollments || [];
       const uniqueList = [];
       const map = new Map();
@@ -43,15 +60,20 @@ export default function Dashboard() {
       for (const item of rawList) {
           if(!item.course) continue;
           if(!map.has(item.course._id)){
-              map.set(item.course._id, true); // set any value to Map
+              map.set(item.course._id, true);
               uniqueList.push(item);
           }
       }
 
       setEnrollments(uniqueList);
+      setError(null); // Success hone par error hatayein
 
-    } catch (error) {
-      console.error("Failed to load courses", error);
+    } catch (err) {
+      console.error("Failed to load courses:", err);
+      // Agar background fetch fail ho to user ko pareshan na karein
+      if (!isBackground) {
+        setError(err.message); 
+      }
     } finally {
       if (!isBackground) setLoading(false);
     }
@@ -63,6 +85,19 @@ export default function Dashboard() {
     if (hour < 18) return "Good Afternoon";
     return "Good Evening";
   };
+
+  if (error && loading) {
+     return (
+        <div className="flex flex-col items-center justify-center min-h-[50vh] text-center text-gray-400">
+           <AlertCircle size={48} className="mb-4 text-red-500" />
+           <p className="text-xl text-white">Something went wrong.</p>
+           <p className="text-sm mt-2 text-red-400">{error}</p>
+           <button onClick={() => window.location.reload()} className="mt-6 px-6 py-2 bg-white/10 rounded-full hover:bg-white/20 text-white">
+              Try Again
+           </button>
+        </div>
+     )
+  }
 
   return (
     <div className="space-y-8">
@@ -104,8 +139,8 @@ export default function Dashboard() {
         ) : enrollments.length === 0 ? (
           <div className="text-center py-20 bg-[#111] rounded-3xl border border-white/10 border-dashed">
             <Trophy size={48} className="mx-auto text-gray-600 mb-4" />
-            <h3 className="text-xl font-bold text-white">No courses yet</h3>
-            <p className="text-gray-400 mt-2 mb-6">Explore our catalog and start learning today.</p>
+            <h3 className="text-xl font-bold text-white">No courses found</h3>
+            <p className="text-gray-400 mt-2 mb-6">It looks like you haven't enrolled yet or approval is pending.</p>
             <Link href="/courses">
               <button className="px-6 py-3 bg-yellow-400 text-black font-bold rounded-full hover:bg-yellow-300 transition-all">
                 Browse Courses
@@ -116,19 +151,24 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {enrollments.map((enrollment, index) => {
               const course = enrollment.course;
-              
-              // Safety Check
               if (!course) return null;
 
               return (
                 <motion.div
-                  key={enrollment._id} // Using enrollment ID is fine, logic ensures course is unique
+                  key={enrollment._id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                   className="group relative bg-[#111] border border-white/10 rounded-3xl overflow-hidden hover:border-yellow-500/50 transition-all duration-300 hover:shadow-[0_0_30px_-10px_rgba(250,204,21,0.15)] flex flex-col h-full"
                 >
-                  {/* Decorative Gradient Background */}
+                   {/* Status Badge */}
+                   {enrollment.status === 'pending' && (
+                      <div className="absolute top-2 right-2 z-20 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">
+                          Approval Pending
+                      </div>
+                   )}
+
+                  {/* Gradient Background */}
                   <div className={`h-32 w-full ${course.gradient || 'bg-gradient-to-br from-blue-600 to-purple-600'} relative p-6`}>
                     <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-all"></div>
                     <span className="absolute top-4 right-4 bg-black/50 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10">
@@ -151,7 +191,7 @@ export default function Dashboard() {
                       </span>
                     </div>
 
-                    {/* Progress Bar (Visual Only) */}
+                    {/* Progress Bar */}
                     <div className="mt-auto space-y-2">
                        <div className="flex justify-between text-xs font-medium">
                           <span className="text-gray-400">Progress</span>
