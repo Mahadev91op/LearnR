@@ -2,55 +2,94 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { useAuth } from "@/components/shared/AuthContext"; // AuthContext import kiya
+import { useAuth } from "@/components/shared/AuthContext"; // Auth Context
+import Script from "next/script"; // Razorpay Script
 
 export default function CourseDetails({ course }) {
   const [activeTab, setActiveTab] = useState("overview");
   
-  // --- NEW STATE FOR PAYMENT MODAL ---
+  // --- STATE FOR PAYMENT & AUTH ---
   const { user } = useAuth();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
 
-  // --- PAYMENT HANDLER (New Functionality) ---
+  // --- RAZORPAY PAYMENT HANDLER ---
   const handlePayment = async () => {
     if (!user) {
       alert("Please login to enroll!");
-      return; // Agar user login nahi hai to rok do
+      return;
     }
 
     setPaymentLoading(true);
-    
-    // 1. Fake Payment Delay (Simulation)
-    await new Promise(r => setTimeout(r, 2000));
 
     try {
-       // 2. Call API to create enrollment request
-       const res = await fetch("/api/enroll", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-             userId: user._id, 
-             courseId: course._id,
-             amount: course.price,
-             // Fake Transaction ID generate kar rahe hain
-             transactionId: "TXN_" + Math.random().toString(36).substr(2, 9).toUpperCase()
-          })
-       });
+      // 1. Create Order on Backend
+      const orderRes = await fetch("/api/payment/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: course.price }),
+      });
+      
+      const orderData = await orderRes.json();
+      if (!orderRes.ok) throw new Error(orderData.error);
 
-       const data = await res.json();
+      // 2. Open Razorpay Options
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: orderData.amount,
+        currency: "INR",
+        name: "LearnR Academy",
+        description: `Enrollment for ${course.title}`,
+        image: "/logo.svg", // Make sure this file exists in public folder
+        order_id: orderData.orderId,
+        handler: async function (response) {
+          // 3. On Success -> Verify Backend
+          try {
+             const verifyRes = await fetch("/api/payment/verify", {
+               method: "POST",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify({
+                 razorpay_order_id: response.razorpay_order_id,
+                 razorpay_payment_id: response.razorpay_payment_id,
+                 razorpay_signature: response.razorpay_signature,
+                 userId: user._id,
+                 courseId: course._id,
+                 amount: course.price
+               }),
+             });
 
-       if(res.ok) {
-         alert("Payment Successful! Request sent to Admin.");
-         setShowPaymentModal(false);
-       } else {
-         alert(data.error || "Enrollment failed");
-       }
-    } catch(err) {
-       console.error(err);
-       alert("Error processing enrollment");
+             const verifyData = await verifyRes.json();
+             if (verifyRes.ok) {
+               alert("Payment Successful! Request sent to Admin.");
+               setShowPaymentModal(false);
+             } else {
+               alert("Verification Failed: " + verifyData.error);
+             }
+          } catch (err) {
+             alert("Verification Error");
+          }
+        },
+        prefill: {
+          name: user.name,
+          email: user.email,
+          contact: user.phone || "",
+        },
+        theme: {
+          color: "#EAB308", // Yellow color to match your theme
+        },
+      };
+
+      const rzp1 = new window.Razorpay(options);
+      rzp1.on("payment.failed", function (response) {
+        alert("Payment Failed: " + response.error.description);
+      });
+      rzp1.open();
+
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong with payment initialization");
     } finally {
-       setPaymentLoading(false);
+      setPaymentLoading(false);
     }
   };
 
@@ -103,6 +142,8 @@ export default function CourseDetails({ course }) {
 
   return (
     <div className="relative min-h-screen bg-black pb-24 font-sans selection:bg-yellow-500/30 overflow-x-hidden">
+      {/* Script for Razorpay */}
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" />
       
       {/* --- DYNAMIC BACKGROUND GLOW (OPTIMIZED FOR MOBILE) --- */}
       <div className="fixed inset-0 pointer-events-none z-0">
@@ -372,9 +413,9 @@ export default function CourseDetails({ course }) {
                             <span className="text-gray-500 text-xs md:text-sm font-medium">/ month</span>
                         </div>
 
-                        {/* Animated Button (Updated to Open Modal) */}
+                        {/* Button Updated to Open Modal */}
                         <button 
-                            onClick={() => setShowPaymentModal(true)} 
+                            onClick={() => setShowPaymentModal(true)}
                             className="group relative w-full overflow-hidden rounded-xl bg-yellow-500 p-3 md:p-4 transition-all hover:bg-yellow-400 active:scale-[0.98] shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:shadow-[0_0_30px_rgba(234,179,8,0.5)] mb-5 md:mb-6 transform-gpu"
                         >
                            <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/30 to-transparent z-10"></div>
@@ -420,11 +461,10 @@ export default function CourseDetails({ course }) {
                   </div>
                </div>
             </div>
-
         </div>
       </section>
 
-      {/* --- PAYMENT MODAL (NEW ADDITION WITH SAME DESIGN LANGUAGE) --- */}
+      {/* --- PAYMENT MODAL (Uses Same Design Language) --- */}
       <AnimatePresence>
         {showPaymentModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -474,7 +514,7 @@ export default function CourseDetails({ course }) {
                               Processing...
                           </div>
                        ) : (
-                          <>Pay & Join <span className="text-lg">➔</span></>
+                          <>Pay with Razorpay <span className="text-lg">➔</span></>
                        )}
                     </button>
                     <p className="text-center text-[10px] text-gray-500">
@@ -485,7 +525,6 @@ export default function CourseDetails({ course }) {
           </div>
         )}
       </AnimatePresence>
-
     </div>
   );
 }
