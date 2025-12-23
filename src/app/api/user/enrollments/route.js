@@ -3,16 +3,13 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import connectDB from "@/lib/db";
 import Enrollment from "@/models/Enrollment";
-import Course from "@/models/Course";
-
-// FIX 1: Server ko force karein ki data hamesha naya laye (No Caching)
-export const dynamic = "force-dynamic";
+import Course from "@/models/Course"; // Model register karna zaroori hai
 
 export async function GET() {
   try {
     await connectDB();
     
-    // Next.js 15: Cookies async hain
+    // FIX: Next.js 16+ mein cookies() async hai, isliye await lagana zaroori hai
     const cookieStore = await cookies();
     const token = cookieStore.get("token");
 
@@ -20,9 +17,11 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Token Verify
     const decoded = jwt.verify(token.value, process.env.JWT_SECRET || "secret123");
     
-    // Sirf 'approved' courses fetch karein
+    // Enrollments Fetching
+    // 'populate' se Course ka data (title, image etc.) aayega
     const enrollments = await Enrollment.find({ 
       user: decoded.id, 
       status: "approved" 
@@ -30,21 +29,13 @@ export async function GET() {
     .populate("course")
     .lean();
 
-    // FIX 2: Explicit No-Cache Headers return karein
-    return NextResponse.json(
-      { enrollments }, 
-      { 
-        status: 200,
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-        }
-      }
-    );
+    // Console log for debugging (Server terminal check karein)
+    console.log("User ID:", decoded.id);
+    console.log("Found Enrollments:", enrollments.length);
 
+    return NextResponse.json({ enrollments }, { status: 200 });
   } catch (error) {
     console.error("Error fetching user enrollments:", error);
-    return NextResponse.json({ error: "Server Error" }, { status: 500 });
+    return NextResponse.json({ error: "Server Error: " + error.message }, { status: 500 });
   }
 }

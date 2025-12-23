@@ -12,7 +12,7 @@ export default function Navbar() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
-  // Scroll Logic (Hooks ko kabhi bhi conditional return ke baad nahi rakhna chahiye)
+  // Scroll Logic
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 20) setIsScrolled(true);
@@ -22,8 +22,8 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // FIX: Admin check ab yahan, sabhi Hooks ke baad lagaya hai
-  if (pathname && pathname.startsWith("/admin")) {
+  // FIX: Admin aur Dashboard dono routes par Navbar hide karein
+  if (pathname && (pathname.startsWith("/admin") || pathname.startsWith("/dashboard"))) {
     return null;
   }
 
@@ -156,8 +156,6 @@ export default function Navbar() {
                             Profile
                           </Link>
 
-                          {/* Settings Removed Here */}
-
                           <div className="h-px bg-white/5 my-1"></div>
 
                           {/* Logout */}
@@ -280,7 +278,6 @@ export default function Navbar() {
                             </button>
                           </Link>
                        )}
-                      {/* Settings Removed */}
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">

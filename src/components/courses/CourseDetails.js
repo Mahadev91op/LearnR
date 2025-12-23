@@ -1,17 +1,44 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { useRouter } from "next/navigation"; // Added for redirection
 import { useAuth } from "@/components/shared/AuthContext";
 import Script from "next/script";
 
 export default function CourseDetails({ course }) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
   
   // --- STATE FOR PAYMENT & AUTH ---
   const { user } = useAuth();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [isEnrolled, setIsEnrolled] = useState(false); // NEW: Track Enrollment Status
+
+  // --- NEW: CHECK ENROLLMENT STATUS ON LOAD ---
+  useEffect(() => {
+    const checkStatus = async () => {
+      if (!user || !course) return;
+      try {
+        // No-store cache ensures we get fresh data
+        const res = await fetch("/api/user/enrollments", { cache: "no-store" });
+        const data = await res.json();
+        
+        if (data.enrollments) {
+          // Check if this specific course exists in user's enrollments
+          const found = data.enrollments.some(
+            (enrollment) => enrollment.course._id === course._id
+          );
+          if (found) setIsEnrolled(true);
+        }
+      } catch (error) {
+        console.error("Error checking enrollment:", error);
+      }
+    };
+
+    checkStatus();
+  }, [user, course]);
 
   // --- MODIFIED PAYMENT HANDLER (BYPASS MODE) ---
   const handlePayment = async () => {
@@ -20,52 +47,15 @@ export default function CourseDetails({ course }) {
       return;
     }
 
+    // Safety check just in case
+    if (isEnrolled) {
+        router.push("/dashboard");
+        return;
+    }
+
     setPaymentLoading(true);
 
     try {
-      // ============================================================
-      // OPTION 1: REAL RAZORPAY CODE (COMMENTED OUT FOR NOW)
-      // Future me jab Razorpay lagana ho, to niche wala block uncomment karein
-      // aur OPTION 2 ko comment/remove kar dein.
-      // ============================================================
-      /*
-      // 1. Create Order on Backend
-      const orderRes = await fetch("/api/payment/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: course.price }),
-      });
-      
-      const orderData = await orderRes.json();
-      if (!orderRes.ok) throw new Error(orderData.error);
-
-      // 2. Open Razorpay Options
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: orderData.amount,
-        currency: "INR",
-        name: "LearnR Academy",
-        description: `Enrollment for ${course.title}`,
-        image: "/logo.svg",
-        order_id: orderData.orderId,
-        handler: async function (response) {
-            await verifyPayment(response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature);
-        },
-        prefill: {
-          name: user.name,
-          email: user.email,
-          contact: user.phone || "",
-        },
-        theme: { color: "#EAB308" },
-      };
-
-      const rzp1 = new window.Razorpay(options);
-      rzp1.on("payment.failed", function (response) {
-        alert("Payment Failed: " + response.error.description);
-      });
-      rzp1.open();
-      */
-
       // ============================================================
       // OPTION 2: TEMPORARY BYPASS (DIRECT ENROLLMENT)
       // ============================================================
@@ -93,7 +83,9 @@ export default function CourseDetails({ course }) {
       const verifyData = await verifyRes.json();
       if (verifyRes.ok) {
         alert("Enrollment Successful! (Payment Bypassed)");
+        setIsEnrolled(true); // Update UI immediately
         setShowPaymentModal(false);
+        router.push("/dashboard"); // Redirect to Dashboard
       } else {
         alert("Enrollment Failed: " + verifyData.error);
       }
@@ -153,15 +145,11 @@ export default function CourseDetails({ course }) {
 
   const tabs = ['overview', 'demo videos', 'demo notes', 'syllabus', 'reviews'];
 
-  // ... (Baki ka return statement same rahega) ...
   return (
     <div className="relative min-h-screen bg-black pb-24 font-sans selection:bg-yellow-500/30 overflow-x-hidden">
       {/* Script for Razorpay (Abhi use nahi ho raha, par rehne do future ke liye) */}
       <Script src="https://checkout.razorpay.com/v1/checkout.js" />
       
-      {/* ... Baki ka pura UI code same as provided previously ... */}
-      
-      {/* Bas niche return ke end tak same code copy paste karein */}
       <div className="fixed inset-0 pointer-events-none z-0">
           <div className={`absolute top-[-20%] left-[-20%] w-[800px] h-[800px] rounded-full mix-blend-screen blur-[80px] md:blur-[150px] opacity-15 bg-gradient-to-br ${course.gradient || 'from-yellow-500 to-orange-500'} transform-gpu will-change-transform`}></div>
           <div className={`absolute bottom-[-20%] right-[-20%] w-[600px] h-[600px] rounded-full mix-blend-screen blur-[80px] md:blur-[150px] opacity-10 bg-gradient-to-tl ${course.gradient || 'from-yellow-500 to-orange-500'} transform-gpu will-change-transform`}></div>
@@ -350,8 +338,8 @@ export default function CourseDetails({ course }) {
                              <div key={idx} className="bg-gray-900/50 border border-white/10 rounded-xl md:rounded-2xl overflow-hidden">
                                 <div className="p-4 md:p-5 flex justify-between items-center bg-white/5">
                                    <h4 className="font-bold text-white text-xs md:text-base pr-4">
-                                       <span className="text-yellow-500 mr-2 block md:inline">Module {idx + 1}:</span> 
-                                       {module.title}
+                                        <span className="text-yellow-500 mr-2 block md:inline">Module {idx + 1}:</span> 
+                                        {module.title}
                                    </h4>
                                    <span className="text-[10px] md:text-xs font-mono text-gray-400 bg-black/30 px-2 py-1 rounded whitespace-nowrap">{module.topics.length} Lessons</span>
                                 </div>
@@ -399,16 +387,29 @@ export default function CourseDetails({ course }) {
                             <span className="text-gray-500 text-xs md:text-sm font-medium">/ month</span>
                         </div>
 
-                        <button 
-                            onClick={() => setShowPaymentModal(true)}
-                            className="group relative w-full overflow-hidden rounded-xl bg-yellow-500 p-3 md:p-4 transition-all hover:bg-yellow-400 active:scale-[0.98] shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:shadow-[0_0_30px_rgba(234,179,8,0.5)] mb-5 md:mb-6 transform-gpu"
-                        >
-                           <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/30 to-transparent z-10"></div>
-                           <span className="relative z-20 text-black font-black text-base md:text-lg uppercase tracking-wide flex items-center justify-center gap-2">
-                             Enroll Now 
-                             <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
-                           </span>
-                        </button>
+                        {/* --- SMART BUTTON LOGIC --- */}
+                        {isEnrolled ? (
+                            <button 
+                                onClick={() => router.push("/dashboard")}
+                                className="group relative w-full overflow-hidden rounded-xl bg-green-500 p-3 md:p-4 transition-all hover:bg-green-400 active:scale-[0.98] shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] mb-5 md:mb-6 transform-gpu"
+                            >
+                                <span className="relative z-20 text-black font-black text-base md:text-lg uppercase tracking-wide flex items-center justify-center gap-2">
+                                    Go to Dashboard
+                                    <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                                </span>
+                            </button>
+                        ) : (
+                            <button 
+                                onClick={() => setShowPaymentModal(true)}
+                                className="group relative w-full overflow-hidden rounded-xl bg-yellow-500 p-3 md:p-4 transition-all hover:bg-yellow-400 active:scale-[0.98] shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:shadow-[0_0_30px_rgba(234,179,8,0.5)] mb-5 md:mb-6 transform-gpu"
+                            >
+                                <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/30 to-transparent z-10"></div>
+                                <span className="relative z-20 text-black font-black text-base md:text-lg uppercase tracking-wide flex items-center justify-center gap-2">
+                                Enroll Now 
+                                <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                                </span>
+                            </button>
+                        )}
 
                         <div className="space-y-3 md:space-y-4 text-xs md:text-sm text-gray-400 border-t border-white/10 pt-5 md:pt-6">
                             <p className="font-medium text-white mb-2">This plan includes:</p>
