@@ -2,8 +2,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { useAuth } from "@/components/shared/AuthContext"; // Auth Context
-import Script from "next/script"; // Razorpay Script
+import { useAuth } from "@/components/shared/AuthContext";
+import Script from "next/script";
 
 export default function CourseDetails({ course }) {
   const [activeTab, setActiveTab] = useState("overview");
@@ -13,7 +13,7 @@ export default function CourseDetails({ course }) {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
 
-  // --- RAZORPAY PAYMENT HANDLER ---
+  // --- MODIFIED PAYMENT HANDLER (BYPASS MODE) ---
   const handlePayment = async () => {
     if (!user) {
       alert("Please login to enroll!");
@@ -23,6 +23,12 @@ export default function CourseDetails({ course }) {
     setPaymentLoading(true);
 
     try {
+      // ============================================================
+      // OPTION 1: REAL RAZORPAY CODE (COMMENTED OUT FOR NOW)
+      // Future me jab Razorpay lagana ho, to niche wala block uncomment karein
+      // aur OPTION 2 ko comment/remove kar dein.
+      // ============================================================
+      /*
       // 1. Create Order on Backend
       const orderRes = await fetch("/api/payment/create-order", {
         method: "POST",
@@ -40,43 +46,17 @@ export default function CourseDetails({ course }) {
         currency: "INR",
         name: "LearnR Academy",
         description: `Enrollment for ${course.title}`,
-        image: "/logo.svg", // Make sure this file exists in public folder
+        image: "/logo.svg",
         order_id: orderData.orderId,
         handler: async function (response) {
-          // 3. On Success -> Verify Backend
-          try {
-             const verifyRes = await fetch("/api/payment/verify", {
-               method: "POST",
-               headers: { "Content-Type": "application/json" },
-               body: JSON.stringify({
-                 razorpay_order_id: response.razorpay_order_id,
-                 razorpay_payment_id: response.razorpay_payment_id,
-                 razorpay_signature: response.razorpay_signature,
-                 userId: user._id,
-                 courseId: course._id,
-                 amount: course.price
-               }),
-             });
-
-             const verifyData = await verifyRes.json();
-             if (verifyRes.ok) {
-               alert("Payment Successful! Request sent to Admin.");
-               setShowPaymentModal(false);
-             } else {
-               alert("Verification Failed: " + verifyData.error);
-             }
-          } catch (err) {
-             alert("Verification Error");
-          }
+            await verifyPayment(response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature);
         },
         prefill: {
           name: user.name,
           email: user.email,
           contact: user.phone || "",
         },
-        theme: {
-          color: "#EAB308", // Yellow color to match your theme
-        },
+        theme: { color: "#EAB308" },
       };
 
       const rzp1 = new window.Razorpay(options);
@@ -84,16 +64,49 @@ export default function CourseDetails({ course }) {
         alert("Payment Failed: " + response.error.description);
       });
       rzp1.open();
+      */
+
+      // ============================================================
+      // OPTION 2: TEMPORARY BYPASS (DIRECT ENROLLMENT)
+      // ============================================================
+      
+      // Simulate network delay for better UX
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Fake Payment Data generate kar rahe hain
+      const fakePaymentData = {
+        razorpay_order_id: "order_bypass_" + Date.now(),
+        razorpay_payment_id: "pay_bypass_" + Date.now(),
+        razorpay_signature: "bypass_signature_secret",
+        userId: user._id,
+        courseId: course._id,
+        amount: course.price
+      };
+
+      // Seedha verification API call karein
+      const verifyRes = await fetch("/api/payment/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fakePaymentData),
+      });
+
+      const verifyData = await verifyRes.json();
+      if (verifyRes.ok) {
+        alert("Enrollment Successful! (Payment Bypassed)");
+        setShowPaymentModal(false);
+      } else {
+        alert("Enrollment Failed: " + verifyData.error);
+      }
 
     } catch (err) {
       console.error(err);
-      alert("Something went wrong with payment initialization");
+      alert("Something went wrong with enrollment");
     } finally {
       setPaymentLoading(false);
     }
   };
 
-  // --- ICONS FOR MOBILE TABS (SVG) ---
+  // --- ICONS & REST OF THE COMPONENT (No Changes Needed Below) ---
   const tabIcons = {
     overview: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -112,7 +125,7 @@ export default function CourseDetails({ course }) {
     )
   };
 
-  // --- FAKE DATA (Unchanged) ---
+  // --- FAKE DATA ---
   const syllabus = [
     { title: "Introduction & Basics", topics: ["Understanding Grammar", "Sentence Structure", "Parts of Speech"] },
     { title: "Advanced Concepts", topics: ["Active vs Passive Voice", "Direct Indirect Speech", "Tenses Mastery"] },
@@ -140,29 +153,28 @@ export default function CourseDetails({ course }) {
 
   const tabs = ['overview', 'demo videos', 'demo notes', 'syllabus', 'reviews'];
 
+  // ... (Baki ka return statement same rahega) ...
   return (
     <div className="relative min-h-screen bg-black pb-24 font-sans selection:bg-yellow-500/30 overflow-x-hidden">
-      {/* Script for Razorpay */}
+      {/* Script for Razorpay (Abhi use nahi ho raha, par rehne do future ke liye) */}
       <Script src="https://checkout.razorpay.com/v1/checkout.js" />
       
-      {/* --- DYNAMIC BACKGROUND GLOW (OPTIMIZED FOR MOBILE) --- */}
+      {/* ... Baki ka pura UI code same as provided previously ... */}
+      
+      {/* Bas niche return ke end tak same code copy paste karein */}
       <div className="fixed inset-0 pointer-events-none z-0">
           <div className={`absolute top-[-20%] left-[-20%] w-[800px] h-[800px] rounded-full mix-blend-screen blur-[80px] md:blur-[150px] opacity-15 bg-gradient-to-br ${course.gradient || 'from-yellow-500 to-orange-500'} transform-gpu will-change-transform`}></div>
           <div className={`absolute bottom-[-20%] right-[-20%] w-[600px] h-[600px] rounded-full mix-blend-screen blur-[80px] md:blur-[150px] opacity-10 bg-gradient-to-tl ${course.gradient || 'from-yellow-500 to-orange-500'} transform-gpu will-change-transform`}></div>
           <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.04]"></div>
       </div>
 
-      {/* --- HERO SECTION --- */}
       <section className="relative pt-24 md:pt-32 pb-8 md:pb-16 overflow-hidden z-10">
         <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 grid lg:grid-cols-2 gap-8 md:gap-12 items-center">
-          
-          {/* Left: Text Content */}
           <motion.div 
             initial={{ opacity: 0, x: -30 }} 
             animate={{ opacity: 1, x: 0 }} 
             transition={{ duration: 0.8, ease: "easeOut" }}
           >
-            {/* Badge */}
             <div className="inline-flex items-center gap-2 px-3 py-1 md:px-4 md:py-1.5 rounded-full border border-yellow-500/20 bg-yellow-500/5 backdrop-blur-md mb-6 md:mb-8 shadow-[0_0_20px_-5px_rgba(234,179,8,0.2)]">
               <span className="relative flex h-1.5 w-1.5 md:h-2 md:w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
@@ -172,16 +184,12 @@ export default function CourseDetails({ course }) {
                 {course.category} • {course.level}
               </span>
             </div>
-
-            {/* Title */}
             <h1 className="text-4xl md:text-7xl font-black text-white mb-4 md:mb-6 leading-[1.1] tracking-tight">
               {course.title}
             </h1>
             <p className="text-gray-400 text-sm md:text-xl leading-relaxed mb-6 md:mb-8 max-w-xl">
               {course.description}
             </p>
-
-            {/* Meta Stats */}
             <div className="flex flex-wrap gap-3 md:gap-4 text-xs md:text-sm text-gray-300">
               <div className="flex items-center gap-1.5 md:gap-2 bg-white/5 px-3 py-2 md:px-4 md:py-2.5 rounded-lg md:rounded-xl border border-white/5 backdrop-blur-sm">
                 <span>⏱</span> <span className="font-semibold">{course.duration}</span>
@@ -195,7 +203,6 @@ export default function CourseDetails({ course }) {
             </div>
           </motion.div>
 
-          {/* Right: Video/Hero Image */}
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }} 
             animate={{ opacity: 1, scale: 1 }} 
@@ -220,14 +227,11 @@ export default function CourseDetails({ course }) {
         </div>
       </section>
 
-      {/* --- CONTENT & STICKY SIDEBAR --- */}
       <section className="max-w-7xl mx-auto px-4 md:px-6 mt-4 md:mt-8 relative z-10">
         <div className="grid lg:grid-cols-3 gap-8 lg:gap-16">
             
-            {/* LEFT COLUMN: TABS & CONTENT */}
             <div className="lg:col-span-2">
                
-               {/* CUSTOM TAB NAVIGATION */}
                <div className="sticky top-20 z-40 bg-black/90 backdrop-blur-md md:backdrop-blur-xl border-b border-white/10 mb-6 md:mb-8 -mx-4 px-4 md:mx-0 md:px-0 md:rounded-xl md:border md:top-24 shadow-lg md:shadow-none transition-all">
                  <div className="flex justify-between md:justify-start md:overflow-x-auto md:no-scrollbar">
                    {tabs.map((tab) => (
@@ -237,17 +241,8 @@ export default function CourseDetails({ course }) {
                        className={`relative flex-1 md:flex-none flex items-center justify-center py-3 md:px-6 md:py-4 transition-colors outline-none
                          ${activeTab === tab ? "text-yellow-400" : "text-gray-500 hover:text-white"}`}
                      >
-                       {/* Mobile: Only Icon */}
-                       <span className="block md:hidden text-lg transform-gpu">
-                          {tabIcons[tab]}
-                       </span>
-
-                       {/* Desktop: Only Text */}
-                       <span className="hidden md:block text-sm font-bold uppercase tracking-wider whitespace-nowrap">
-                          {tab}
-                       </span>
-
-                       {/* Active Indicator */}
+                       <span className="block md:hidden text-lg transform-gpu">{tabIcons[tab]}</span>
+                       <span className="hidden md:block text-sm font-bold uppercase tracking-wider whitespace-nowrap">{tab}</span>
                        {activeTab === tab && (
                          <motion.div 
                            layoutId="activeTab"
@@ -259,11 +254,9 @@ export default function CourseDetails({ course }) {
                  </div>
                </div>
 
-               {/* Tab Content Area */}
                <div className="min-h-[400px]">
                  <AnimatePresence mode="wait">
                     
-                    {/* OVERVIEW TAB */}
                     {activeTab === 'overview' && (
                        <motion.div 
                           key="overview"
@@ -295,7 +288,6 @@ export default function CourseDetails({ course }) {
                        </motion.div>
                     )}
 
-                    {/* DEMO VIDEOS TAB */}
                     {activeTab === 'demo videos' && (
                         <motion.div 
                            key="videos"
@@ -321,7 +313,6 @@ export default function CourseDetails({ course }) {
                         </motion.div>
                     )}
 
-                    {/* DEMO NOTES TAB */}
                     {activeTab === 'demo notes' && (
                         <motion.div 
                            key="notes"
@@ -349,7 +340,6 @@ export default function CourseDetails({ course }) {
                         </motion.div>
                     )}
 
-                    {/* SYLLABUS TAB */}
                     {activeTab === 'syllabus' && (
                        <motion.div 
                           key="syllabus"
@@ -378,7 +368,6 @@ export default function CourseDetails({ course }) {
                        </motion.div>
                     )}
 
-                    {/* REVIEWS TAB */}
                     {activeTab === 'reviews' && (
                        <motion.div 
                           key="reviews"
@@ -394,12 +383,9 @@ export default function CourseDetails({ course }) {
                </div>
             </div>
 
-            {/* RIGHT COLUMN: STICKY PRICING CARD */}
             <div className="lg:col-span-1 mt-8 lg:mt-0">
                <div className="sticky top-28">
                   <div className="relative bg-[#0A0A0A] border border-white/10 rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-2xl overflow-hidden transform-gpu">
-                      
-                      {/* Decorative Gradient Blob */}
                       <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 blur-[60px] rounded-full pointer-events-none"></div>
 
                       <div className="relative z-10">
@@ -413,7 +399,6 @@ export default function CourseDetails({ course }) {
                             <span className="text-gray-500 text-xs md:text-sm font-medium">/ month</span>
                         </div>
 
-                        {/* Button Updated to Open Modal */}
                         <button 
                             onClick={() => setShowPaymentModal(true)}
                             className="group relative w-full overflow-hidden rounded-xl bg-yellow-500 p-3 md:p-4 transition-all hover:bg-yellow-400 active:scale-[0.98] shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:shadow-[0_0_30px_rgba(234,179,8,0.5)] mb-5 md:mb-6 transform-gpu"
@@ -454,7 +439,6 @@ export default function CourseDetails({ course }) {
                       </div>
                   </div>
 
-                  {/* Trust Badge */}
                   <div className="mt-4 flex items-center justify-center gap-2 text-gray-500 text-[10px] md:text-xs">
                      <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" /><path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" /></svg>
                      <span>Secure Payment via UPI/Card</span>
@@ -464,7 +448,6 @@ export default function CourseDetails({ course }) {
         </div>
       </section>
 
-      {/* --- PAYMENT MODAL (Uses Same Design Language) --- */}
       <AnimatePresence>
         {showPaymentModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -474,10 +457,8 @@ export default function CourseDetails({ course }) {
                exit={{ opacity: 0, scale: 0.9 }}
                className="bg-[#111] border border-white/10 w-full max-w-md rounded-3xl p-6 shadow-2xl relative overflow-hidden"
              >
-                {/* Decorative Blob */}
                 <div className="absolute top-[-50px] right-[-50px] w-40 h-40 bg-yellow-500/10 rounded-full blur-[50px] pointer-events-none"></div>
 
-                {/* Close Button */}
                 <button 
                     onClick={() => setShowPaymentModal(false)} 
                     className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
@@ -514,7 +495,7 @@ export default function CourseDetails({ course }) {
                               Processing...
                           </div>
                        ) : (
-                          <>Pay with Razorpay <span className="text-lg">➔</span></>
+                          <>Confirm & Enroll (Bypass) <span className="text-lg">➔</span></>
                        )}
                     </button>
                     <p className="text-center text-[10px] text-gray-500">

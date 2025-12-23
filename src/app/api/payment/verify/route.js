@@ -18,7 +18,12 @@ export async function POST(req) {
       amount 
     } = await req.json();
 
-    // 1. Signature Verification
+    // ============================================================
+    // OPTION 1: REAL VERIFICATION (COMMENTED OUT)
+    // Future me jab Razorpay keys aa jaye, tab is block ko uncomment karein
+    // aur OPTION 2 (Bypass) ko remove kar dein.
+    // ============================================================
+    /*
     const body = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
@@ -28,14 +33,21 @@ export async function POST(req) {
     if (expectedSignature !== razorpay_signature) {
       return NextResponse.json({ error: "Invalid Payment Signature" }, { status: 400 });
     }
+    */
+
+    // ============================================================
+    // OPTION 2: BYPASS VERIFICATION (TEMPORARY)
+    // ============================================================
+    console.log("BYPASS MODE: Skipping Razorpay signature verification.");
+    // Fake IDs will be accepted here.
 
     // 2. Payment Verified -> Save Enrollment (Pending)
     const newEnrollment = await Enrollment.create({
       user: userId,
       course: courseId,
       amount: amount,
-      status: "pending", // Abhi bhi pending rahega jab tak Admin approve na kare
-      transactionId: razorpay_payment_id, // Real Transaction ID
+      status: "pending", 
+      transactionId: razorpay_payment_id, // Fake ID from frontend
     });
 
     // 3. Email Notification (User & Admin)
@@ -51,11 +63,12 @@ export async function POST(req) {
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: user.email,
-      subject: "Payment Received - Waiting for Approval",
+      subject: "Enrollment Successful (Bypassed) - Waiting for Approval",
       html: `
         <div style="font-family: sans-serif; padding: 20px;">
-          <h2>Payment Successful!</h2>
-          <p>We received your payment of ₹${amount} (Txn ID: ${razorpay_payment_id}).</p>
+          <h2>Enrollment Request Received</h2>
+          <p>We received your request for <strong>${course.title}</strong>.</p>
+          <p>This is a manual/bypassed enrollment (Txn ID: ${razorpay_payment_id}).</p>
           <p>Please wait while our admin verifies and approves your enrollment.</p>
         </div>
       `,
@@ -65,9 +78,9 @@ export async function POST(req) {
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: process.env.EMAIL_USER, // Admin Email
-      subject: "New Razorpay Enrollment Request",
+      subject: "New Enrollment Request (Bypassed)",
       html: `
-        <p>New Payment Verified!</p>
+        <p>New Enrollment Request (Razorpay Bypassed)</p>
         <p>User: ${user.name}</p>
         <p>Course: ${course.title}</p>
         <p>Amount: ₹${amount}</p>
