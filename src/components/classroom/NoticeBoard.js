@@ -1,8 +1,65 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Clock, Trash2, Plus, X, AlertCircle, Pin } from "lucide-react";
-import { toast } from "react-hot-toast"; // Assuming you have react-hot-toast or use your Toast component
+import { Bell, Clock, Trash2, Plus, X, AlertCircle, Pin, ChevronDown, Check, Send } from "lucide-react";
+import { toast } from "react-hot-toast"; 
+
+// --- CUSTOM DROPDOWN COMPONENT (To fix PC visibility & improve design) ---
+const CustomSelect = ({ label, value, options, onChange, icon: Icon }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef(null);
+
+  // Close dropdown if clicked outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (ref.current && !ref.current.contains(event.target)) setIsOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedLabel = options.find(opt => opt.value === value)?.label || "Select";
+
+  return (
+    <div className="relative" ref={ref}>
+      <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1.5 block ml-1">{label}</label>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full bg-[#1A1A1A] border ${isOpen ? 'border-yellow-400' : 'border-white/10'} rounded-xl p-3 flex items-center justify-between text-white transition-all duration-200 hover:bg-white/5 active:scale-[0.98]`}
+      >
+        <div className="flex items-center gap-2 text-sm font-medium">
+          {Icon && <Icon size={16} className="text-gray-400" />}
+          <span>{selectedLabel}</span>
+        </div>
+        <ChevronDown size={16} className={`text-gray-500 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            className="absolute z-50 w-full mt-2 bg-[#1A1A1A] border border-white/10 rounded-xl shadow-xl overflow-hidden"
+          >
+            {options.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => { onChange(opt.value); setIsOpen(false); }}
+                className={`w-full text-left px-4 py-3 text-sm flex items-center justify-between hover:bg-white/5 transition-colors ${value === opt.value ? 'text-yellow-400 bg-yellow-400/5' : 'text-gray-300'}`}
+              >
+                {opt.label}
+                {value === opt.value && <Check size={14} />}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 // --- CREATE NOTICE MODAL COMPONENT ---
 const AddNoticeModal = ({ isOpen, onClose, courseId, onNoticeAdded }) => {
@@ -11,11 +68,16 @@ const AddNoticeModal = ({ isOpen, onClose, courseId, onNoticeAdded }) => {
     title: "",
     content: "",
     priority: "medium",
-    durationHours: "24", // Default 1 day
+    durationHours: "24",
   });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.title || !formData.content) {
+        toast.error("Please fill all fields");
+        return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/admin/notice/create", {
@@ -26,7 +88,7 @@ const AddNoticeModal = ({ isOpen, onClose, courseId, onNoticeAdded }) => {
       const data = await res.json();
       
       if (data.success) {
-        toast.success("Notice Posted & Emails Sent!");
+        toast.success("Notice Posted Successfully!");
         onNoticeAdded();
         onClose();
         setFormData({ title: "", content: "", priority: "medium", durationHours: "24" });
@@ -43,79 +105,106 @@ const AddNoticeModal = ({ isOpen, onClose, courseId, onNoticeAdded }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md sm:p-4">
       <motion.div 
-        initial={{ opacity: 0, scale: 0.9 }} 
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-[#111] border border-white/10 rounded-2xl w-full max-w-lg p-6 relative"
+        initial={{ opacity: 0, y: 100, scale: 0.95 }} 
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 100, scale: 0.95 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        className="bg-[#0f0f0f] border-t sm:border border-white/10 sm:rounded-3xl rounded-t-3xl w-full max-w-md relative shadow-2xl overflow-hidden"
       >
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white"><X size={20}/></button>
-        <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-          <span className="bg-yellow-400 text-black p-1 rounded"><Plus size={16}/></span> Create New Notice
-        </h2>
+        {/* Background Gradients */}
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-600 via-yellow-400 to-yellow-200" />
+        <div className="absolute -top-20 -right-20 w-40 h-40 bg-yellow-400/10 blur-[50px] rounded-full pointer-events-none" />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 pb-2">
+           <div>
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                New Notice
+              </h2>
+              <p className="text-xs text-gray-500 font-medium">Notify all students instantly</p>
+           </div>
+           <button 
+             onClick={onClose} 
+             className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
+           >
+             <X size={16}/>
+           </button>
+        </div>
+
+        {/* Form */}
+        <div className="p-6 pt-4 space-y-5">
+          {/* Title Input */}
           <div>
-            <label className="text-xs text-gray-400 uppercase font-bold block mb-2">Title</label>
+            <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1.5 block ml-1">Title</label>
             <input 
               required
-              className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:border-yellow-400 outline-none"
-              placeholder="e.g., Exam Rescheduled"
+              autoFocus
+              className="w-full bg-[#1A1A1A] border border-white/10 rounded-xl p-3 text-white placeholder:text-gray-600 focus:border-yellow-400 focus:bg-[#1A1A1A] outline-none transition-all text-sm font-medium"
+              placeholder="Ex: Class Rescheduled"
               value={formData.title}
               onChange={(e) => setFormData({...formData, title: e.target.value})}
             />
           </div>
           
+          {/* Content Input */}
           <div>
-            <label className="text-xs text-gray-400 uppercase font-bold block mb-2">Notice Content</label>
+            <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1.5 block ml-1">Details</label>
             <textarea 
               required
-              rows={4}
-              className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:border-yellow-400 outline-none resize-none"
-              placeholder="Write the details here..."
+              rows={3}
+              className="w-full bg-[#1A1A1A] border border-white/10 rounded-xl p-3 text-white placeholder:text-gray-600 focus:border-yellow-400 focus:bg-[#1A1A1A] outline-none resize-none transition-all text-sm leading-relaxed"
+              placeholder="What's the update about?"
               value={formData.content}
               onChange={(e) => setFormData({...formData, content: e.target.value})}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs text-gray-400 uppercase font-bold block mb-2">Disappears After</label>
-              <select 
-                className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white outline-none"
+          {/* Custom Dropdowns Row */}
+          <div className="grid grid-cols-2 gap-3">
+             <CustomSelect 
+                label="Duration"
                 value={formData.durationHours}
-                onChange={(e) => setFormData({...formData, durationHours: e.target.value})}
-              >
-                <option value="1">1 Hour</option>
-                <option value="6">6 Hours</option>
-                <option value="12">12 Hours</option>
-                <option value="24">24 Hours (1 Day)</option>
-                <option value="48">48 Hours (2 Days)</option>
-                <option value="168">7 Days</option>
-              </select>
-            </div>
-            <div>
-               <label className="text-xs text-gray-400 uppercase font-bold block mb-2">Priority</label>
-               <select 
-                className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white outline-none"
+                onChange={(val) => setFormData({...formData, durationHours: val})}
+                icon={Clock}
+                options={[
+                    { value: "1", label: "1 Hour" },
+                    { value: "6", label: "6 Hours" },
+                    { value: "12", label: "12 Hours" },
+                    { value: "24", label: "1 Day" },
+                    { value: "48", label: "2 Days" },
+                    { value: "168", label: "7 Days" },
+                ]}
+             />
+             <CustomSelect 
+                label="Priority"
                 value={formData.priority}
-                onChange={(e) => setFormData({...formData, priority: e.target.value})}
-              >
-                <option value="low">Low Info</option>
-                <option value="medium">Medium</option>
-                <option value="high">High / Urgent</option>
-              </select>
-            </div>
+                onChange={(val) => setFormData({...formData, priority: val})}
+                icon={AlertCircle}
+                options={[
+                    { value: "low", label: "Low Info" },
+                    { value: "medium", label: "Medium" },
+                    { value: "high", label: "Urgent" },
+                ]}
+             />
           </div>
 
+          {/* Submit Button */}
           <button 
+            onClick={handleSubmit}
             disabled={loading}
-            type="submit" 
-            className="w-full bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 mt-4"
+            className="w-full bg-yellow-400 hover:bg-yellow-300 active:scale-[0.98] text-black font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 mt-2 shadow-lg shadow-yellow-400/20"
           >
-            {loading ? "Sending Emails..." : "Post Notice"}
+            {loading ? (
+                <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+            ) : (
+                <>
+                 <Send size={18} /> Post Notice
+                </>
+            )}
           </button>
-        </form>
+        </div>
       </motion.div>
     </div>
   );
@@ -129,20 +218,26 @@ export default function NoticeBoard({ courseId, isAdmin = false }) {
 
   const fetchNotices = async () => {
     try {
-      const res = await fetch(`/api/courses/${courseId}/notices`);
+      // Corrected URL: added '/admin' to match your folder structure
+      const res = await fetch(`/api/admin/courses/${courseId}/notices`);
+      
+      if (!res.ok) throw new Error("Network response was not ok");
+
       const data = await res.json();
       if (data.success) {
         setNotices(data.notices);
       }
     } catch (error) {
-      console.error("Failed to fetch notices");
+      console.error("Failed to fetch notices", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchNotices();
+    if (courseId) {
+        fetchNotices();
+    }
   }, [courseId]);
 
   // Determine styles based on priority
@@ -222,13 +317,17 @@ export default function NoticeBoard({ courseId, isAdmin = false }) {
         </div>
       )}
 
-      {/* Modal */}
-      <AddNoticeModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)}
-        courseId={courseId}
-        onNoticeAdded={fetchNotices}
-      />
+      {/* Improved Modal */}
+      <AnimatePresence>
+        {isModalOpen && (
+            <AddNoticeModal 
+                isOpen={isModalOpen} 
+                onClose={() => setIsModalOpen(false)}
+                courseId={courseId}
+                onNoticeAdded={fetchNotices}
+            />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
