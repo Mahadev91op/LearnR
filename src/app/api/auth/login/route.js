@@ -21,14 +21,21 @@ export async function POST(req) {
       return NextResponse.json({ error: "Invalid Credentials" }, { status: 401 });
     }
 
-    // JWT Token Generate
+    // JWT Token Generate (Ye 7 din tak valid hai)
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || "secret123", {
       expiresIn: "7d",
     });
 
     // Cookie set karein
     const response = NextResponse.json({ success: true, message: "Login Successful", user });
-    response.cookies.set("token", token, { httpOnly: true, path: "/" });
+    
+    // FIX: Yahan 'maxAge' add kiya hai (7 Days in seconds)
+    // Ab browser close karne par bhi login rahega
+    response.cookies.set("token", token, { 
+        httpOnly: true, 
+        path: "/",
+        maxAge: 7 * 24 * 60 * 60 // 7 Days = 604800 seconds
+    });
 
     return response;
   } catch (error) {
