@@ -5,8 +5,10 @@ import { Mic, MicOff, Video as VideoIcon, VideoOff, MonitorUp, Users, Send, Book
 
 // Import the new NoticeBoard component
 import NoticeBoard from "./NoticeBoard"; 
-// Import the new SyllabusManager component (NEW ADDITION)
+// Import the new SyllabusManager component
 import SyllabusManager from "./SyllabusManager";
+// Import the new LectureManager component (NEW INTEGRATION)
+import LectureManager from "./LectureManager";
 
 // 1. OVERVIEW TAB
 const OverviewTab = ({ course }) => (
@@ -130,7 +132,9 @@ export default function ClassroomContent({ activeTab, courseData }) {
     // NEW SYLLABUS INTEGRATION
     case "syllabus": return <SyllabusManager courseId={courseId} />;
 
-    case "lectures": return <GenericListTab type="lectures" data={[]} />;
+    // NEW LECTURES INTEGRATION
+    case "lectures": return <LectureManager courseId={courseId} />;
+
     case "materials": return <GenericListTab type="materials" data={[]} />;
     case "assignments": return <GenericListTab type="assignments" data={[]} />;
     case "tests": return <GenericListTab type="tests" data={[]} />;
