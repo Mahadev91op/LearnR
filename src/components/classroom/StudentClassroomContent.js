@@ -1,5 +1,6 @@
 "use client";
 import { PlayCircle, FileText, Video, MicOff, Users, MessageSquare } from "lucide-react";
+import StudentNoticeBoard from "./StudentNoticeBoard"; // <-- Import New Component
 
 // 1. OVERVIEW
 const OverviewTab = ({ course }) => (
@@ -65,15 +66,21 @@ const GenericListTab = ({ type }) => (
 );
 
 export default function StudentClassroomContent({ activeTab, courseData }) {
+  // Course ID extract karein
+  const courseId = courseData?._id;
+
   switch (activeTab) {
     case "overview": return <OverviewTab course={courseData} />;
     case "live": return <LiveTab />;
+    
+    // Yahan humne naya NoticeBoard laga diya
+    case "notices": return <StudentNoticeBoard courseId={courseId} />;
+    
     case "lectures": return <GenericListTab type="lectures" />;
     case "materials": return <GenericListTab type="materials" />;
     case "syllabus": return <GenericListTab type="syllabus" />;
     case "assignments": return <GenericListTab type="assignments" />;
     case "tests": return <GenericListTab type="tests" />;
-    case "notices": return <GenericListTab type="notices" />;
     default: return <div className="p-10 text-center text-gray-500">Coming Soon</div>;
   }
 }
