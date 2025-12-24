@@ -3,7 +3,10 @@ import "./globals.css";
 import Navbar from "@/components/shared/Navbar";
 import Footer from "@/components/shared/Footer";
 import { ToastProvider } from "@/components/shared/Toast";
-import { AuthProvider } from "@/components/shared/AuthContext"; // Import AuthProvider
+import { AuthProvider } from "@/components/shared/AuthContext";
+import { Analytics } from "@vercel/analytics/react";
+// 1. SpeedInsights Import karein
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -16,10 +19,17 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={inter.className} suppressHydrationWarning={true}>
-        <AuthProvider> {/* Sabse bahar AuthProvider lagayein */}
+        <AuthProvider>
           <ToastProvider>
             <Navbar />
             {children}
+            
+            {/* Vercel Analytics */}
+            <Analytics />
+            
+            {/* 2. SpeedInsights Component yahan add karein */}
+            <SpeedInsights />
+            
             <Footer />
           </ToastProvider>
         </AuthProvider>
