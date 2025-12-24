@@ -1,10 +1,10 @@
 "use client";
 import { PlayCircle, FileText, Video, MicOff, Users, MessageSquare } from "lucide-react";
 import StudentNoticeBoard from "./StudentNoticeBoard"; 
-// Import the new Syllabus Viewer Component
 import StudentSyllabusViewer from "./StudentSyllabusViewer"; 
+// Step 3.1: Import karein
+import StudentLectureViewer from "./StudentLectureViewer";
 
-// 1. OVERVIEW TAB (No Changes)
 const OverviewTab = ({ course }) => (
   <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -25,7 +25,6 @@ const OverviewTab = ({ course }) => (
   </div>
 );
 
-// 2. LIVE TAB (No Changes)
 const LiveTab = () => (
   <div className="flex flex-col h-[calc(100vh-80px)] md:flex-row bg-black overflow-hidden animate-in fade-in duration-300">
      <div className="flex-1 bg-[#111] relative flex items-center justify-center">
@@ -44,7 +43,6 @@ const LiveTab = () => (
   </div>
 );
 
-// 3. GENERIC LIST TAB (No Changes - for Lectures, Materials etc.)
 const GenericListTab = ({ type }) => (
   <div className="p-6 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4">
     <h2 className="text-2xl font-bold text-white capitalize mb-6">{type}</h2>
@@ -67,22 +65,18 @@ const GenericListTab = ({ type }) => (
   </div>
 );
 
-// MAIN COMPONENT
 export default function StudentClassroomContent({ activeTab, courseData }) {
-  // Course ID extraction
   const courseId = courseData?._id;
 
   switch (activeTab) {
     case "overview": return <OverviewTab course={courseData} />;
     case "live": return <LiveTab />;
-    
-    // Notice Board Integration
     case "notices": return <StudentNoticeBoard courseId={courseId} />;
-    
-    // NEW: Student Syllabus Integration (Read Only)
     case "syllabus": return <StudentSyllabusViewer courseId={courseId} />;
 
-    case "lectures": return <GenericListTab type="lectures" />;
+    // Step 3.2: Yahan Lectures ke liye naya component use karein
+    case "lectures": return <StudentLectureViewer courseId={courseId} />;
+    
     case "materials": return <GenericListTab type="materials" />;
     case "assignments": return <GenericListTab type="assignments" />;
     case "tests": return <GenericListTab type="tests" />;
