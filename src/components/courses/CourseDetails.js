@@ -16,12 +16,11 @@ export default function CourseDetails({ course }) {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false); 
 
-  // --- NEW: CHECK ENROLLMENT STATUS ON LOAD ---
+  // --- CHECK ENROLLMENT STATUS ON LOAD ---
   useEffect(() => {
     const checkStatus = async () => {
       if (!user || !course) return;
       try {
-        // FIX: URL me Timestamp add kiya taaki browser hamesha fresh data laye
         const timestamp = Date.now();
         const res = await fetch(`/api/user/enrollments?t=${timestamp}`, { 
             cache: "no-store",
@@ -33,11 +32,10 @@ export default function CourseDetails({ course }) {
         const data = await res.json();
         
         if (data.enrollments) {
-          // Check if this specific course exists in user's enrollments
           const found = data.enrollments.some(
             (enrollment) => enrollment.course._id === course._id
           );
-          setIsEnrolled(found); // Update status correctly
+          setIsEnrolled(found);
         }
       } catch (error) {
         console.error("Error checking enrollment:", error);
@@ -47,7 +45,7 @@ export default function CourseDetails({ course }) {
     checkStatus();
   }, [user, course]);
 
-  // --- MODIFIED PAYMENT HANDLER (BYPASS MODE) ---
+  // --- PREMIUM RAZORPAY HANDLER ---
   const handlePayment = async () => {
     if (!user) {
       alert("Please login to enroll!");
@@ -62,40 +60,88 @@ export default function CourseDetails({ course }) {
     setPaymentLoading(true);
 
     try {
-      // ============================================================
-      // OPTION 2: TEMPORARY BYPASS (DIRECT ENROLLMENT)
-      // ============================================================
-      
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      const fakePaymentData = {
-        razorpay_order_id: "order_bypass_" + Date.now(),
-        razorpay_payment_id: "pay_bypass_" + Date.now(),
-        razorpay_signature: "bypass_signature_secret",
-        userId: user._id,
-        courseId: course._id,
-        amount: course.price
-      };
-
-      const verifyRes = await fetch("/api/payment/verify", {
+      // 1. Create Order via Backend
+      const orderRes = await fetch("/api/payment/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(fakePaymentData),
+        body: JSON.stringify({ courseId: course._id }),
       });
 
-      const verifyData = await verifyRes.json();
-      if (verifyRes.ok) {
-        alert("Enrollment Successful! (Payment Bypassed)");
-        setIsEnrolled(true); 
-        setShowPaymentModal(false);
-        router.push("/dashboard"); 
-      } else {
-        alert("Enrollment Failed: " + verifyData.error);
+      const orderData = await orderRes.json();
+
+      if (!orderRes.ok) {
+        throw new Error(orderData.error || "Could not initiate payment");
       }
+
+      // 2. Initialize Razorpay Options (Premium Theme)
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, 
+        amount: orderData.order.amount,
+        currency: orderData.order.currency,
+        name: "LearnR Premium",
+        description: `Lifetime Access to ${course.title}`,
+        // Yahan apna Transparent Yellow/White Logo lagayein
+        image: "/images/premium-logo.png", 
+        order_id: orderData.order.id,
+        handler: async function (response) {
+          try {
+            const verifyRes = await fetch("/api/payment/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                userId: user._id,
+                courseId: course._id,
+                amount: course.price
+              }),
+            });
+
+            const verifyData = await verifyRes.json();
+
+            if (verifyRes.ok) {
+              alert("Payment Successful! Welcome to the course.");
+              setIsEnrolled(true); 
+              setShowPaymentModal(false);
+              router.push("/dashboard"); 
+            } else {
+              alert("Verification Failed: " + verifyData.error);
+            }
+          } catch (err) {
+            console.error("Verification API Error:", err);
+            alert("Payment verified but enrollment failed. Contact support.");
+          }
+        },
+        prefill: {
+          name: user.name,
+          email: user.email,
+        },
+        theme: {
+          color: "#F59E0B", // Premium Amber/Yellow Color
+          hide_topbar: false,
+        },
+        modal: {
+          backdropclose: false, // Prevent accidental close
+          escape: false,
+          handleback: true,
+          confirm_close: true
+        },
+        retry: {
+          enabled: true
+        },
+      };
+
+      const rzp1 = new window.Razorpay(options);
+      rzp1.on("payment.failed", function (response) {
+        console.error(response.error);
+        alert(`Payment Failed: ${response.error.description}`);
+      });
+      rzp1.open();
 
     } catch (err) {
       console.error(err);
-      alert("Something went wrong with enrollment");
+      alert(err.message);
     } finally {
       setPaymentLoading(false);
     }
@@ -120,6 +166,7 @@ export default function CourseDetails({ course }) {
     )
   };
 
+  // Mock Data (Assuming this comes from props or API in real app if dynamic)
   const syllabus = [
     { title: "Introduction & Basics", topics: ["Understanding Grammar", "Sentence Structure", "Parts of Speech"] },
     { title: "Advanced Concepts", topics: ["Active vs Passive Voice", "Direct Indirect Speech", "Tenses Mastery"] },
@@ -486,7 +533,7 @@ export default function CourseDetails({ course }) {
                     <button 
                       onClick={handlePayment} 
                       disabled={paymentLoading}
-                      className="w-full bg-green-500 hover:bg-green-400 text-black font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(34,197,94,0.3)]"
+                      className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:shadow-[0_0_30px_rgba(234,179,8,0.5)]"
                     >
                        {paymentLoading ? (
                           <div className="flex items-center gap-2">
@@ -497,7 +544,7 @@ export default function CourseDetails({ course }) {
                               Processing...
                           </div>
                        ) : (
-                          <>Confirm & Enroll (Bypass) <span className="text-lg">➔</span></>
+                          <>Pay & Enroll Now <span className="text-lg">➔</span></>
                        )}
                     </button>
                     <p className="text-center text-[10px] text-gray-500">
