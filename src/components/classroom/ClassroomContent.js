@@ -5,6 +5,8 @@ import { Mic, MicOff, Video as VideoIcon, VideoOff, MonitorUp, Users, Send, Book
 
 // Import the new NoticeBoard component
 import NoticeBoard from "./NoticeBoard"; 
+// Import the new SyllabusManager component (NEW ADDITION)
+import SyllabusManager from "./SyllabusManager";
 
 // 1. OVERVIEW TAB
 const OverviewTab = ({ course }) => (
@@ -80,7 +82,7 @@ const LiveTab = () => {
   );
 };
 
-// 3. GENERIC LIST TAB (For Syllabus, Materials, etc.)
+// 3. GENERIC LIST TAB (For Materials, etc.)
 const GenericListTab = ({ type, data }) => (
   <div className="p-6 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4">
     <div className="flex justify-between items-center mb-6">
@@ -125,9 +127,11 @@ export default function ClassroomContent({ activeTab, courseData }) {
     // Updated Notice Board Integration
     case "notices": return <NoticeBoard courseId={courseId} isAdmin={isAdmin} />;
 
+    // NEW SYLLABUS INTEGRATION
+    case "syllabus": return <SyllabusManager courseId={courseId} />;
+
     case "lectures": return <GenericListTab type="lectures" data={[]} />;
     case "materials": return <GenericListTab type="materials" data={[]} />;
-    case "syllabus": return <GenericListTab type="syllabus" data={[]} />;
     case "assignments": return <GenericListTab type="assignments" data={[]} />;
     case "tests": return <GenericListTab type="tests" data={[]} />;
     default: return <div className="p-10 text-center text-gray-500">Tab Under Construction</div>;
