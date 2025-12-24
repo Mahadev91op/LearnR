@@ -5,7 +5,7 @@ import Syllabus from "@/models/Syllabus";
 export async function PUT(req, { params }) {
   try {
     await connectDB();
-    const { syllabusId } = params;
+    const { syllabusId } = await params; // Fix: Added await
     const body = await req.json();
 
     // Agar status completed mark ho raha hai, toh date update karein
@@ -25,7 +25,7 @@ export async function PUT(req, { params }) {
 export async function DELETE(req, { params }) {
   try {
     await connectDB();
-    const { syllabusId } = params;
+    const { syllabusId } = await params; // Fix: Added await
     await Syllabus.findByIdAndDelete(syllabusId);
     return NextResponse.json({ message: "Deleted" });
   } catch (error) {

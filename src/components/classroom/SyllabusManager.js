@@ -3,9 +3,9 @@ import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Plus, Edit2, Trash2, CheckCircle2, Clock, 
-  PlayCircle, BookOpen, Layers, Hash, Calendar, X 
+  PlayCircle, BookOpen, Layers, Hash, X, Trophy
 } from "lucide-react";
-import { toast } from "react-hot-toast"; // Assuming you have react-hot-toast or use your Toast component
+import { toast } from "react-hot-toast";
 
 export default function SyllabusManager({ courseId }) {
   const [syllabus, setSyllabus] = useState([]);
@@ -22,7 +22,7 @@ export default function SyllabusManager({ courseId }) {
     status: "Pending"
   });
 
-  // Suggestion State (Smart Dropdowns)
+  // Suggestion State
   const [showBookSuggestions, setShowBookSuggestions] = useState(false);
   const [showTopicSuggestions, setShowTopicSuggestions] = useState(false);
 
@@ -40,10 +40,20 @@ export default function SyllabusManager({ courseId }) {
   };
 
   useEffect(() => {
-    fetchSyllabus();
+    if (courseId) {
+        fetchSyllabus();
+    }
   }, [courseId]);
 
-  // Derived Unique Lists for Suggestions (Auto-Learning)
+  // Derived Statistics
+  const stats = useMemo(() => {
+    const total = syllabus.length;
+    const completed = syllabus.filter(s => s.status === "Completed").length;
+    const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
+    return { total, completed, progress };
+  }, [syllabus]);
+
+  // Derived Unique Lists for Suggestions
   const bookSuggestions = useMemo(() => 
     [...new Set(syllabus.map(s => s.bookName).filter(Boolean))], 
   [syllabus]);
@@ -72,9 +82,13 @@ export default function SyllabusManager({ courseId }) {
         toast.success(editingId ? "Chapter Updated!" : "Chapter Added!");
         fetchSyllabus();
         closeForm();
+      } else {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Failed to save chapter");
       }
     } catch (err) {
       toast.error("Something went wrong");
+      console.error(err);
     }
   };
 
@@ -105,225 +119,259 @@ export default function SyllabusManager({ courseId }) {
     } catch (err) { console.error(err); }
   };
 
-  // Helper for Status Colors
   const getStatusColor = (status) => {
     switch(status) {
-      case "Completed": return "text-green-400 bg-green-400/10 border-green-400/20";
-      case "Ongoing": return "text-yellow-400 bg-yellow-400/10 border-yellow-400/20";
-      default: return "text-gray-400 bg-gray-400/10 border-gray-400/20";
+      case "Completed": return "text-green-400 bg-green-500/10 border-green-500/30 shadow-[0_0_10px_rgba(74,222,128,0.2)]";
+      case "Ongoing": return "text-yellow-300 bg-yellow-500/10 border-yellow-500/30 shadow-[0_0_10px_rgba(250,204,21,0.2)]";
+      default: return "text-gray-400 bg-gray-500/10 border-gray-500/20";
     }
   };
 
   return (
-    <div className="p-6 md:p-10 max-w-6xl mx-auto min-h-screen text-white">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto min-h-screen text-white">
       
-      {/* Header */}
-      <div className="flex justify-between items-center mb-12">
-        <div>
-          <h2 className="text-3xl font-black bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">
+      {/* Header with Stats & Actions */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 md:mb-12 gap-6">
+        
+        {/* Title & Progress */}
+        <div className="w-full md:w-auto">
+          <h2 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-200 to-gray-500">
             Course Syllabus
           </h2>
-          <p className="text-gray-400 text-sm mt-1">Manage curriculum timeline & progress</p>
+          
+          <div className="mt-3 flex items-center gap-4">
+             {/* Progress Bar Compact */}
+             <div className="bg-[#111] border border-white/10 px-4 py-2 rounded-xl flex items-center gap-3 w-full md:w-auto">
+                <Trophy size={14} className="text-green-400" />
+                <div className="w-24 md:w-32 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                   <motion.div 
+                      initial={{ width: 0 }} 
+                      animate={{ width: `${stats.progress}%` }} 
+                      className="h-full bg-gradient-to-r from-green-500 to-emerald-300"
+                   />
+                </div>
+                <span className="text-xs font-bold text-white">{stats.progress}%</span>
+             </div>
+          </div>
         </div>
+
+        {/* Add Button - Compact & Clean */}
         <motion.button 
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setIsFormOpen(true)}
-          className="bg-yellow-400 text-black px-6 py-3 rounded-full font-bold flex items-center gap-2 shadow-[0_0_20px_rgba(250,204,21,0.3)]"
+          className="bg-yellow-400 text-black px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-[0_0_15px_rgba(250,204,21,0.3)] transition-all text-sm self-end md:self-auto"
         >
-          <Plus size={20} /> Add Chapter
+          <Plus size={18} strokeWidth={3} /> Add Chapter
         </motion.button>
       </div>
 
       {/* GRAPHICAL TIMELINE DISPLAY */}
-      <div className="relative border-l-2 border-dashed border-white/10 ml-4 md:ml-10 space-y-12 pb-20">
-        {loading ? <p className="pl-10 text-gray-500 animate-pulse">Loading Roadmap...</p> : 
-         syllabus.length === 0 ? <p className="pl-10 text-gray-500">No chapters added yet.</p> :
-         syllabus.map((item, index) => (
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1 }}
-            key={item._id} 
-            className="relative pl-10 md:pl-16 group"
-          >
-            {/* Timeline Connector Dot */}
-            <div className={`absolute -left-[9px] top-6 w-5 h-5 rounded-full border-4 border-[#050505] 
-              ${item.status === "Completed" ? "bg-green-400 shadow-[0_0_15px_rgba(74,222,128,0.6)]" : 
-                item.status === "Ongoing" ? "bg-yellow-400 animate-pulse shadow-[0_0_15px_rgba(250,204,21,0.6)]" : 
-                "bg-gray-600"}`} 
-            />
+      <div className="relative ml-2 md:ml-8 space-y-4 md:space-y-6 pb-20">
+        {loading ? (
+            <div className="pl-8 text-sm text-gray-500 animate-pulse">Loading Roadmap...</div>
+        ) : syllabus.length === 0 ? (
+            <p className="pl-8 text-sm text-gray-500 italic">No chapters added yet.</p>
+        ) : (
+         syllabus.map((item, index) => {
+            const isLast = index === syllabus.length - 1;
+            
+            // Neon Line Logic
+            let lineClass = "border-l-2 border-dashed border-white/10";
+            let lineGlow = "";
 
-            {/* Content Card */}
-            <div className={`relative bg-[#0f0f0f] border border-white/5 p-6 rounded-2xl hover:border-yellow-400/30 transition-all duration-300 group-hover:bg-[#141414] group-hover:shadow-2xl group-hover:translate-x-2`}>
-              
-              {/* Card Header & Status */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 border-b border-white/5 pb-4">
-                <div className="flex items-center gap-3">
-                   <span className="text-4xl font-black text-white/5 select-none">#{String(item.chapterNo).padStart(2,'0')}</span>
-                   <div>
-                      <h3 className="text-xl font-bold text-white group-hover:text-yellow-400 transition-colors">{item.chapterName}</h3>
-                      {item.completedDate && (
-                        <p className="text-xs text-green-500 flex items-center gap-1 mt-1">
-                          <CheckCircle2 size={12}/> Completed on {new Date(item.completedDate).toLocaleDateString()}
-                        </p>
+            if (item.status === "Completed") {
+                lineClass = "border-l-2 border-solid border-green-500";
+                lineGlow = "shadow-[0_0_10px_rgba(34,197,94,0.5)]";
+            } else if (item.status === "Ongoing") {
+                lineClass = "border-l-2 border-solid border-yellow-400";
+            }
+
+            return (
+              <motion.div 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
+                key={item._id} 
+                className="relative pl-8 md:pl-12 group"
+              >
+                {/* Timeline Line */}
+                {!isLast && (
+                   <div className={`absolute left-0 top-[18px] h-[calc(100%+1rem)] w-[2px] z-0 ${lineClass} ${lineGlow}`}>
+                      {item.status === "Ongoing" && (
+                         <div className="absolute inset-0 w-full h-full bg-yellow-400 blur-[3px] animate-pulse" />
                       )}
                    </div>
-                </div>
-                
-                {/* Status Badge */}
-                <div className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 w-fit ${getStatusColor(item.status)}`}>
-                   {item.status === "Completed" && <CheckCircle2 size={14} />}
-                   {item.status === "Ongoing" && <PlayCircle size={14} className="animate-spin-slow" />}
-                   {item.status === "Pending" && <Clock size={14} />}
-                   {item.status}
-                </div>
-              </div>
+                )}
 
-              {/* Details Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-400">
-                  <div className="bg-black/40 p-3 rounded-xl flex items-center gap-3">
-                     <div className="bg-blue-500/10 p-2 rounded-lg text-blue-400"><BookOpen size={18}/></div>
-                     <div>
-                        <p className="text-xs uppercase text-gray-500 font-bold">Book Reference</p>
-                        <p className="text-white font-medium truncate">{item.bookName}</p>
+                {/* Dot */}
+                <div className={`absolute -left-[7px] top-6 w-4 h-4 rounded-full border-[3px] border-[#050505] z-10 transition-colors duration-500
+                  ${item.status === "Completed" ? "bg-green-400 shadow-[0_0_15px_rgba(74,222,128,0.8)]" : 
+                    item.status === "Ongoing" ? "bg-yellow-400 animate-pulse shadow-[0_0_15px_rgba(250,204,21,0.8)]" : 
+                    "bg-gray-700"}`} 
+                />
+
+                {/* COMPACT CARD - Slimmer & Sleeker */}
+                <div className={`relative bg-[#0f0f0f]/80 backdrop-blur-md border border-white/5 p-4 md:p-5 rounded-xl 
+                    transition-all duration-300 hover:bg-[#141414] hover:border-white/10 group-hover:shadow-[0_0_30px_-10px_rgba(255,255,255,0.05)]`}
+                >
+                  
+                  {/* Header Row */}
+                  <div className="flex items-center gap-4 mb-3">
+                     {/* Chapter No */}
+                     <span className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white/10 to-transparent select-none leading-none">
+                        #{String(item.chapterNo).padStart(2,'0')}
+                     </span>
+                     
+                     <div className="flex-1 min-w-0">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                            <h3 className="text-base md:text-lg font-bold text-white group-hover:text-yellow-300 transition-colors truncate">
+                                {item.chapterName}
+                            </h3>
+                             {/* Status Badge */}
+                            <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 w-fit border ${getStatusColor(item.status)}`}>
+                                {item.status === "Completed" && <CheckCircle2 size={10} />}
+                                {item.status === "Ongoing" && <PlayCircle size={10} className="animate-spin-slow" />}
+                                {item.status}
+                            </div>
+                        </div>
                      </div>
                   </div>
-                  <div className="bg-black/40 p-3 rounded-xl flex items-center gap-3">
-                     <div className="bg-purple-500/10 p-2 rounded-lg text-purple-400"><Layers size={18}/></div>
-                     <div>
-                        <p className="text-xs uppercase text-gray-500 font-bold">Topic Covered</p>
-                        <p className="text-white font-medium truncate">{item.topicName}</p>
-                     </div>
+
+                  {/* Details Grid - Slim */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs md:text-sm text-gray-500">
+                      <div className="flex items-center gap-2">
+                         <BookOpen size={14} className="text-blue-400"/>
+                         <span className="truncate">{item.bookName}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                         <Layers size={14} className="text-purple-400"/>
+                         <span className="truncate">{item.topicName}</span>
+                      </div>
                   </div>
-              </div>
 
-              {/* Admin Actions (Absolute top-right inside card) */}
-              <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                 <button onClick={() => handleEdit(item)} className="p-2 bg-white/10 hover:bg-blue-500/20 hover:text-blue-400 rounded-lg transition-colors"><Edit2 size={16}/></button>
-                 <button onClick={() => handleDelete(item._id)} className="p-2 bg-white/10 hover:bg-red-500/20 hover:text-red-500 rounded-lg transition-colors"><Trash2 size={16}/></button>
-              </div>
+                  {/* Actions (Always visible on mobile but subtle) */}
+                  <div className="absolute top-3 right-3 flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                     <button onClick={() => handleEdit(item)} className="p-1.5 hover:bg-white/10 text-gray-400 hover:text-blue-400 rounded-lg transition-colors">
+                        <Edit2 size={14}/>
+                     </button>
+                     <button onClick={() => handleDelete(item._id)} className="p-1.5 hover:bg-white/10 text-gray-400 hover:text-red-500 rounded-lg transition-colors">
+                        <Trash2 size={14}/>
+                     </button>
+                  </div>
 
-            </div>
-          </motion.div>
-         ))
-        }
+                </div>
+              </motion.div>
+            );
+         })
+        )}
       </div>
 
-      {/* ADVANCED ANIMATED FORM MODAL */}
+      {/* COMPACT CENTERED FORM MODAL */}
       <AnimatePresence>
         {isFormOpen && (
           <>
+            {/* Overlay */}
             <motion.div 
                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[150]"
                onClick={closeForm}
             />
-            <motion.div 
-               initial={{ opacity: 0, y: 100, scale: 0.95 }}
-               animate={{ opacity: 1, y: 0, scale: 1 }}
-               exit={{ opacity: 0, y: 100, scale: 0.95 }}
-               className="fixed inset-0 m-auto w-full max-w-2xl h-fit max-h-[90vh] overflow-y-auto bg-[#111] border border-white/10 rounded-3xl z-[160] shadow-2xl"
-            >
-              <div className="p-8">
-                 <div className="flex justify-between items-center mb-8">
-                    <h3 className="text-2xl font-bold text-white">{editingId ? "Edit Chapter" : "Add New Chapter"}</h3>
-                    <button onClick={closeForm} className="p-2 hover:bg-white/10 rounded-full"><X/></button>
-                 </div>
+            {/* Modal Box - Centered & Sized Correctly */}
+            <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 pointer-events-none">
+                <motion.div 
+                   initial={{ opacity: 0, scale: 0.9 }}
+                   animate={{ opacity: 1, scale: 1 }}
+                   exit={{ opacity: 0, scale: 0.9 }}
+                   className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl pointer-events-auto overflow-hidden flex flex-col max-h-[90vh]"
+                >
+                  {/* Modal Header */}
+                  <div className="p-5 border-b border-white/5 flex justify-between items-center bg-[#111]">
+                      <h3 className="text-lg font-bold text-white">{editingId ? "Edit Chapter" : "New Chapter"}</h3>
+                      <button onClick={closeForm} className="p-1.5 hover:bg-white/10 rounded-full text-gray-400"><X size={18}/></button>
+                  </div>
 
-                 <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid grid-cols-4 gap-4">
-                        <div className="col-span-1">
-                           <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Ch. No</label>
-                           <div className="relative">
-                             <Hash size={16} className="absolute left-3 top-3.5 text-gray-500"/>
-                             <input type="number" required placeholder="01" 
-                                className="w-full bg-black border border-white/10 rounded-xl py-3 pl-10 text-white focus:border-yellow-400 focus:outline-none transition-colors"
-                                value={formData.chapterNo} onChange={e => setFormData({...formData, chapterNo: e.target.value})}
-                             />
-                           </div>
+                  {/* Scrollable Form Body */}
+                  <div className="p-5 overflow-y-auto custom-scrollbar">
+                     <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="flex gap-4">
+                            <div className="w-20">
+                               <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">No.</label>
+                               <input type="number" required placeholder="01" 
+                                    className="w-full bg-[#111] border border-white/10 rounded-lg py-2 px-3 text-white focus:border-yellow-400 text-center font-mono text-sm outline-none"
+                                    value={formData.chapterNo} onChange={e => setFormData({...formData, chapterNo: e.target.value})}
+                               />
+                            </div>
+                            <div className="flex-1">
+                               <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Chapter Name</label>
+                               <input type="text" required placeholder="Physics Intro..." 
+                                  className="w-full bg-[#111] border border-white/10 rounded-lg py-2 px-3 text-white focus:border-yellow-400 text-sm outline-none"
+                                  value={formData.chapterName} onChange={e => setFormData({...formData, chapterName: e.target.value})}
+                               />
+                            </div>
                         </div>
-                        <div className="col-span-3">
-                           <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Chapter Name</label>
-                           <input type="text" required placeholder="e.g. Introduction to Physics" 
-                              className="w-full bg-black border border-white/10 rounded-xl py-3 px-4 text-white focus:border-yellow-400 focus:outline-none transition-colors"
-                              value={formData.chapterName} onChange={e => setFormData({...formData, chapterName: e.target.value})}
-                           />
+
+                        {/* Smart Inputs */}
+                        <div className="space-y-4">
+                            <div className="relative">
+                               <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Book Name</label>
+                               <BookOpen size={14} className="absolute left-3 top-[26px] text-gray-600"/>
+                               <input type="text" required placeholder="HC Verma..." 
+                                  className="w-full bg-[#111] border border-white/10 rounded-lg py-2 pl-9 pr-3 text-white focus:border-yellow-400 text-sm outline-none"
+                                  value={formData.bookName}
+                                  onFocus={() => setShowBookSuggestions(true)}
+                                  onBlur={() => setTimeout(() => setShowBookSuggestions(false), 200)}
+                                  onChange={e => setFormData({...formData, bookName: e.target.value})}
+                               />
+                               {showBookSuggestions && bookSuggestions.length > 0 && (
+                                    <div className="absolute top-full left-0 w-full bg-[#1a1a1a] border border-white/10 mt-1 rounded-lg z-50 max-h-32 overflow-y-auto">
+                                        {bookSuggestions.filter(b => b.toLowerCase().includes(formData.bookName.toLowerCase())).map(book => (
+                                            <div key={book} onClick={() => setFormData({...formData, bookName: book})} className="px-3 py-2 hover:bg-white/5 text-xs text-gray-300 cursor-pointer">{book}</div>
+                                        ))}
+                                    </div>
+                               )}
+                            </div>
+
+                            <div className="relative">
+                               <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Topic</label>
+                               <Layers size={14} className="absolute left-3 top-[26px] text-gray-600"/>
+                               <input type="text" required placeholder="Mechanics..." 
+                                  className="w-full bg-[#111] border border-white/10 rounded-lg py-2 pl-9 pr-3 text-white focus:border-yellow-400 text-sm outline-none"
+                                  value={formData.topicName}
+                                  onFocus={() => setShowTopicSuggestions(true)}
+                                  onBlur={() => setTimeout(() => setShowTopicSuggestions(false), 200)}
+                                  onChange={e => setFormData({...formData, topicName: e.target.value})}
+                               />
+                               {showTopicSuggestions && topicSuggestions.length > 0 && (
+                                    <div className="absolute top-full left-0 w-full bg-[#1a1a1a] border border-white/10 mt-1 rounded-lg z-50 max-h-32 overflow-y-auto">
+                                        {topicSuggestions.filter(t => t.toLowerCase().includes(formData.topicName.toLowerCase())).map(topic => (
+                                            <div key={topic} onClick={() => setFormData({...formData, topicName: topic})} className="px-3 py-2 hover:bg-white/5 text-xs text-gray-300 cursor-pointer">{topic}</div>
+                                        ))}
+                                    </div>
+                               )}
+                            </div>
                         </div>
-                    </div>
 
-                    {/* SMART DROPDOWN: BOOK NAME */}
-                    <div className="relative z-20">
-                       <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Book Name</label>
-                       <div className="relative">
-                          <BookOpen size={16} className="absolute left-3 top-3.5 text-gray-500"/>
-                          <input 
-                             type="text" required placeholder="e.g. HC Verma Vol 1"
-                             className="w-full bg-black border border-white/10 rounded-xl py-3 pl-10 text-white focus:border-yellow-400 focus:outline-none"
-                             value={formData.bookName}
-                             onFocus={() => setShowBookSuggestions(true)}
-                             onBlur={() => setTimeout(() => setShowBookSuggestions(false), 200)}
-                             onChange={e => setFormData({...formData, bookName: e.target.value})}
-                          />
-                          {/* Suggestions Panel */}
-                          {showBookSuggestions && bookSuggestions.length > 0 && (
-                            <motion.div initial={{opacity:0, y:5}} animate={{opacity:1, y:0}} className="absolute top-full left-0 right-0 bg-[#1a1a1a] border border-white/10 rounded-xl mt-2 max-h-40 overflow-y-auto shadow-xl">
-                               {bookSuggestions.filter(b => b.toLowerCase().includes(formData.bookName.toLowerCase())).map(book => (
-                                 <div key={book} onClick={() => setFormData({...formData, bookName: book})} className="px-4 py-2 hover:bg-white/10 cursor-pointer text-sm text-gray-300 hover:text-white transition-colors">
-                                    {book}
-                                 </div>
-                               ))}
-                            </motion.div>
-                          )}
-                       </div>
-                    </div>
-
-                    {/* SMART DROPDOWN: TOPIC NAME */}
-                    <div className="relative z-10">
-                       <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Topic Name</label>
-                       <div className="relative">
-                          <Layers size={16} className="absolute left-3 top-3.5 text-gray-500"/>
-                          <input 
-                             type="text" required placeholder="e.g. Rotational Mechanics"
-                             className="w-full bg-black border border-white/10 rounded-xl py-3 pl-10 text-white focus:border-yellow-400 focus:outline-none"
-                             value={formData.topicName}
-                             onFocus={() => setShowTopicSuggestions(true)}
-                             onBlur={() => setTimeout(() => setShowTopicSuggestions(false), 200)}
-                             onChange={e => setFormData({...formData, topicName: e.target.value})}
-                          />
-                          {showTopicSuggestions && topicSuggestions.length > 0 && (
-                            <motion.div initial={{opacity:0, y:5}} animate={{opacity:1, y:0}} className="absolute top-full left-0 right-0 bg-[#1a1a1a] border border-white/10 rounded-xl mt-2 max-h-40 overflow-y-auto shadow-xl">
-                               {topicSuggestions.filter(t => t.toLowerCase().includes(formData.topicName.toLowerCase())).map(topic => (
-                                 <div key={topic} onClick={() => setFormData({...formData, topicName: topic})} className="px-4 py-2 hover:bg-white/10 cursor-pointer text-sm text-gray-300 hover:text-white transition-colors">
-                                    {topic}
-                                 </div>
-                               ))}
-                            </motion.div>
-                          )}
-                       </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
                         <div>
-                           <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Status</label>
+                           <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Status</label>
                            <select 
                               value={formData.status} 
                               onChange={e => setFormData({...formData, status: e.target.value})}
-                              className="w-full bg-black border border-white/10 rounded-xl py-3 px-4 text-white focus:border-yellow-400 focus:outline-none appearance-none cursor-pointer"
+                              className="w-full bg-[#111] border border-white/10 rounded-lg py-2 px-3 text-white focus:border-yellow-400 text-sm outline-none appearance-none cursor-pointer"
                            >
                               <option value="Pending">Pending ⏳</option>
                               <option value="Ongoing">Ongoing ▶️</option>
                               <option value="Completed">Completed ✅</option>
                            </select>
                         </div>
-                    </div>
 
-                    <button type="submit" className="w-full bg-yellow-400 text-black font-bold py-4 rounded-xl hover:bg-yellow-300 transition-colors shadow-lg shadow-yellow-400/20">
-                       {editingId ? "Update Chapter Details" : "Add to Syllabus"}
-                    </button>
-                 </form>
-              </div>
-            </motion.div>
+                        <button type="submit" className="w-full bg-yellow-400 text-black font-bold py-3 rounded-xl hover:bg-yellow-300 transition-colors shadow-lg shadow-yellow-400/20 text-sm mt-4">
+                           {editingId ? "Update Chapter" : "Add Chapter"}
+                        </button>
+                     </form>
+                  </div>
+                </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>

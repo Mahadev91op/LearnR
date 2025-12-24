@@ -5,8 +5,8 @@ import Syllabus from "@/models/Syllabus";
 export async function GET(req, { params }) {
   try {
     await connectDB();
-    const { id } = params;
-    // Chapter number ke hisab se sort karke bhejenge
+    const { id } = await params; // Fix: Added await
+    
     const syllabus = await Syllabus.find({ courseId: id }).sort({ chapterNo: 1 });
     return NextResponse.json(syllabus);
   } catch (error) {
@@ -17,7 +17,7 @@ export async function GET(req, { params }) {
 export async function POST(req, { params }) {
   try {
     await connectDB();
-    const { id } = params;
+    const { id } = await params; // Fix: Added await
     const body = await req.json();
     
     const newSyllabus = await Syllabus.create({ ...body, courseId: id });
