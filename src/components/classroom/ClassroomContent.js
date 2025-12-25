@@ -1,17 +1,14 @@
 "use client";
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Mic, MicOff, Video as VideoIcon, VideoOff, MonitorUp, Users, Send, Book, File } from "lucide-react";
+import { Mic, MicOff, Video as VideoIcon, VideoOff, Send, Book, File } from "lucide-react";
 
-// Import existing components
+// Existing Imports
 import NoticeBoard from "./NoticeBoard"; 
 import SyllabusManager from "./SyllabusManager";
 import LectureManager from "./LectureManager";
-
-// NEW IMPORT: Import the new MaterialsManager component
 import MaterialsManager from "./MaterialsManager";
 
-// 1. OVERVIEW TAB (Design unchanged)
+// 1. OVERVIEW TAB (Original Design Preserved)
 const OverviewTab = ({ course }) => (
   <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
      {/* Stats Grid */}
@@ -40,7 +37,7 @@ const OverviewTab = ({ course }) => (
   </div>
 );
 
-// 2. LIVE CLASS TAB (Wahi purana mast wala code)
+// 2. LIVE CLASS TAB (Original Design Preserved)
 const LiveTab = () => {
   const [isLive, setIsLive] = useState(false);
   const [mic, setMic] = useState(true);
@@ -85,7 +82,7 @@ const LiveTab = () => {
   );
 };
 
-// 3. GENERIC LIST TAB (Used for Assignments, Tests, etc.)
+// 3. GENERIC LIST TAB (Original Design Preserved)
 const GenericListTab = ({ type, data }) => (
   <div className="p-6 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4">
     <div className="flex justify-between items-center mb-6">
@@ -100,11 +97,11 @@ const GenericListTab = ({ type, data }) => (
          <div key={item} className="bg-[#111] border border-white/10 p-4 rounded-xl flex items-center justify-between hover:border-yellow-400/30 transition-colors group cursor-pointer">
             <div className="flex items-center gap-4">
                <div className="p-3 bg-white/5 rounded-lg text-yellow-400 group-hover:bg-yellow-400 group-hover:text-black transition-colors">
-                  {type === 'lectures' ? <VideoIcon size={20}/> : type === 'syllabus' ? <Book size={20}/> : <File size={20}/>}
+                  {type === 'syllabus' ? <Book size={20}/> : <File size={20}/>}
                </div>
                <div>
-                  <h4 className="font-bold text-white">Chapter {item}: Introduction to React</h4>
-                  <p className="text-xs text-gray-500">Updated 2 days ago • Public</p>
+                  <h4 className="font-bold text-white">Item {item}: Description Here</h4>
+                  <p className="text-xs text-gray-500">Updated recently • Public</p>
                </div>
             </div>
             <div className="text-gray-500 text-sm font-medium">View Details →</div>
@@ -116,27 +113,22 @@ const GenericListTab = ({ type, data }) => (
 
 // MAIN EXPORT
 export default function ClassroomContent({ activeTab, courseData }) {
-  // Extract course ID safely
   const courseId = courseData?._id;
-
-  // IMPORTANT: Since you are using this in the Admin Panel, we set isAdmin to true.
   const isAdmin = true;
 
   switch (activeTab) {
     case "overview": return <OverviewTab course={courseData} />;
     case "live": return <LiveTab />;
     
-    // Updated Notice Board Integration
     case "notices": return <NoticeBoard courseId={courseId} isAdmin={isAdmin} />;
-
-    // SYLLABUS INTEGRATION
     case "syllabus": return <SyllabusManager courseId={courseId} />;
-
-    // LECTURES INTEGRATION
     case "lectures": return <LectureManager courseId={courseId} />;
-
-    // NEW MATERIALS INTEGRATION (Replaced GenericListTab for materials)
     case "materials": return <MaterialsManager courseId={courseId} />;
+
+    // --- NEW TABS ---
+    case "fees": return <div className="p-10 text-center text-gray-500">Fee Management Module (Coming Soon)</div>;
+    case "attendance": return <div className="p-10 text-center text-gray-500">Attendance Module (Coming Soon)</div>;
+    // ----------------
 
     case "assignments": return <GenericListTab type="assignments" data={[]} />;
     case "tests": return <GenericListTab type="tests" data={[]} />;

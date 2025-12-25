@@ -3,7 +3,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { 
   LayoutDashboard, Video, Radio, FileText, BookOpen, 
-  ClipboardList, CheckSquare, Bell, ArrowLeft, Menu
+  ClipboardList, CheckSquare, Bell, ArrowLeft, IndianRupee, CalendarCheck 
 } from "lucide-react";
 
 export default function ClassroomSidebar({ activeTab, setActiveTab, courseTitle }) {
@@ -17,19 +17,17 @@ export default function ClassroomSidebar({ activeTab, setActiveTab, courseTitle 
     { id: "assignments", label: "Assignments", icon: ClipboardList },
     { id: "tests", label: "Tests", icon: CheckSquare },
     { id: "notices", label: "Notice Board", icon: Bell },
+    // NEW TABS ADDED HERE
+    { id: "fees", label: "Fee Management", icon: IndianRupee },
+    { id: "attendance", label: "Attendance", icon: CalendarCheck },
   ];
 
   return (
     <>
-      {/* =======================
-          1. DESKTOP SIDEBAR (Left Side - Fixed)
-          Design: Same as Admin Panel Sidebar
-         ======================= */}
+      {/* DESKTOP SIDEBAR */}
       <div className="hidden md:flex h-screen w-64 bg-[#0a0a0a] border-r border-white/10 flex-col fixed left-0 top-0 z-[110]">
         
-        {/* Header Area */}
         <div className="p-6 border-b border-white/5">
-           {/* Back Button */}
            <Link 
              href="/admin/classroom" 
              className="flex items-center gap-3 text-gray-500 hover:text-white transition-colors mb-6 group w-fit"
@@ -40,7 +38,6 @@ export default function ClassroomSidebar({ activeTab, setActiveTab, courseTitle 
               <span className="text-xs font-bold uppercase tracking-wider">Exit Class</span>
            </Link>
            
-           {/* Course Info */}
            <div>
                <h2 className="text-white font-bold text-lg leading-tight line-clamp-2">
                  {courseTitle || "Loading Course..."}
@@ -51,7 +48,6 @@ export default function ClassroomSidebar({ activeTab, setActiveTab, courseTitle 
            </div>
         </div>
 
-        {/* Navigation Items */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 custom-scrollbar">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
@@ -79,27 +75,20 @@ export default function ClassroomSidebar({ activeTab, setActiveTab, courseTitle 
           })}
         </div>
 
-        {/* Footer */}
         <div className="p-4 border-t border-white/10 text-center">
              <p className="text-[10px] text-gray-600 font-mono">LearnR Classroom v2.0</p>
         </div>
       </div>
 
-      {/* =======================
-          2. MOBILE NAVIGATION 
-          (Top Header + Bottom Scrollable Tabs)
-         ======================= */}
-      
-      {/* Mobile Header (Fixed Top) */}
+      {/* MOBILE NAVIGATION */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-white/10 flex items-center px-4 justify-between z-[110]">
             <Link href="/admin/classroom" className="text-gray-400 hover:text-white p-1">
                 <ArrowLeft size={20}/>
             </Link>
             <span className="font-bold text-white text-sm truncate max-w-[200px]">{courseTitle}</span>
-            <div className="w-6"></div> {/* Spacer for alignment */}
+            <div className="w-6"></div>
       </div>
 
-      {/* Mobile Tabs (Fixed Bottom) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0a0a0a] border-t border-white/10 z-[110] pb-safe">
         <div className="flex items-center overflow-x-auto px-3 py-3 gap-3 no-scrollbar">
           {tabs.map((tab) => {
