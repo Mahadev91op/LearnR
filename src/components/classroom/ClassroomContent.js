@@ -3,14 +3,15 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Mic, MicOff, Video as VideoIcon, VideoOff, MonitorUp, Users, Send, Book, File } from "lucide-react";
 
-// Import the new NoticeBoard component
+// Import existing components
 import NoticeBoard from "./NoticeBoard"; 
-// Import the new SyllabusManager component
 import SyllabusManager from "./SyllabusManager";
-// Import the new LectureManager component (NEW INTEGRATION)
 import LectureManager from "./LectureManager";
 
-// 1. OVERVIEW TAB
+// NEW IMPORT: Import the new MaterialsManager component
+import MaterialsManager from "./MaterialsManager";
+
+// 1. OVERVIEW TAB (Design unchanged)
 const OverviewTab = ({ course }) => (
   <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
      {/* Stats Grid */}
@@ -84,7 +85,7 @@ const LiveTab = () => {
   );
 };
 
-// 3. GENERIC LIST TAB (For Materials, etc.)
+// 3. GENERIC LIST TAB (Used for Assignments, Tests, etc.)
 const GenericListTab = ({ type, data }) => (
   <div className="p-6 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4">
     <div className="flex justify-between items-center mb-6">
@@ -119,7 +120,6 @@ export default function ClassroomContent({ activeTab, courseData }) {
   const courseId = courseData?._id;
 
   // IMPORTANT: Since you are using this in the Admin Panel, we set isAdmin to true.
-  // If you use this component for students later, you should pass this as a prop.
   const isAdmin = true;
 
   switch (activeTab) {
@@ -129,13 +129,15 @@ export default function ClassroomContent({ activeTab, courseData }) {
     // Updated Notice Board Integration
     case "notices": return <NoticeBoard courseId={courseId} isAdmin={isAdmin} />;
 
-    // NEW SYLLABUS INTEGRATION
+    // SYLLABUS INTEGRATION
     case "syllabus": return <SyllabusManager courseId={courseId} />;
 
-    // NEW LECTURES INTEGRATION
+    // LECTURES INTEGRATION
     case "lectures": return <LectureManager courseId={courseId} />;
 
-    case "materials": return <GenericListTab type="materials" data={[]} />;
+    // NEW MATERIALS INTEGRATION (Replaced GenericListTab for materials)
+    case "materials": return <MaterialsManager courseId={courseId} />;
+
     case "assignments": return <GenericListTab type="assignments" data={[]} />;
     case "tests": return <GenericListTab type="tests" data={[]} />;
     default: return <div className="p-10 text-center text-gray-500">Tab Under Construction</div>;
