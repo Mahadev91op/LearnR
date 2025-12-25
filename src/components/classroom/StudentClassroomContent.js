@@ -4,6 +4,8 @@ import StudentNoticeBoard from "./StudentNoticeBoard";
 import StudentSyllabusViewer from "./StudentSyllabusViewer"; 
 // Step 3.1: Import karein
 import StudentLectureViewer from "./StudentLectureViewer";
+// NEW IMPORT: Import the new Materials Viewer
+import StudentMaterialsViewer from "./StudentMaterialsViewer";
 
 const OverviewTab = ({ course }) => (
   <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -77,7 +79,9 @@ export default function StudentClassroomContent({ activeTab, courseData }) {
     // Step 3.2: Yahan Lectures ke liye naya component use karein
     case "lectures": return <StudentLectureViewer courseId={courseId} />;
     
-    case "materials": return <GenericListTab type="materials" />;
+    // YAHAN CHANGE HUA HAI: Ab ye MaterialsViewer use karega
+    case "materials": return <StudentMaterialsViewer courseId={courseId} />;
+
     case "assignments": return <GenericListTab type="assignments" />;
     case "tests": return <GenericListTab type="tests" />;
     default: return <div className="p-10 text-center text-gray-500">Coming Soon</div>;
