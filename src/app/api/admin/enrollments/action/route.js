@@ -1,101 +1,73 @@
 import { NextResponse } from "next/server";
-import connectDB from "@/lib/db";
+import { connectToDB } from "@/lib/db";
 import Enrollment from "@/models/Enrollment";
 import User from "@/models/User";
 import Course from "@/models/Course";
-import nodemailer from "nodemailer";
 
 export async function POST(req) {
   try {
-    await connectDB();
-    const { enrollmentId, action } = await req.json(); // action can be 'approve' or 'reject'
+    await connectToDB();
+    const body = await req.json();
+    const { userId, courseId } = body;
 
-    if (!enrollmentId || !action) {
-      return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
+    // 1. Validation: Check if IDs are present
+    if (!userId || !courseId) {
+      return NextResponse.json(
+        { message: "User ID and Course ID are required" },
+        { status: 400 }
+      );
     }
 
-    const enrollment = await Enrollment.findById(enrollmentId).populate("user").populate("course");
-    if (!enrollment) {
-      return NextResponse.json({ error: "Enrollment not found" }, { status: 404 });
-    }
-
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+    // 2. Check for Duplicate Enrollment (To prevent double entry)
+    const existingEnrollment = await Enrollment.findOne({
+      student: userId,
+      course: courseId,
     });
 
-    // --- CASE 1: APPROVE ---
-    if (action === "approve") {
-      // 1. Update Status
-      enrollment.status = "approved";
-      await enrollment.save();
-
-      // 2. Add Course to User Profile (Ab User enroll hoga)
-      await User.findByIdAndUpdate(
-        enrollment.user._id,
-        { $addToSet: { courses: enrollment.course._id } },
-        { new: true }
+    if (existingEnrollment) {
+      return NextResponse.json(
+        { message: "User is already enrolled in this course" },
+        { status: 400 }
       );
-
-      // 3. Email to User (Approval Success)
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: enrollment.user.email,
-        subject: "🎉 Enrollment Approved! - LearnR",
-        html: `
-          <div style="font-family: sans-serif; padding: 20px;">
-            <h2>You are now Enrolled!</h2>
-            <p>Congratulations <strong>${enrollment.user.name}</strong>,</p>
-            <p>Your enrollment for <strong>${enrollment.course.title}</strong> has been APPROVED by the admin.</p>
-            <p>You can now access your course from the dashboard.</p>
-            <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" style="background: #F59E0B; color: #000; padding: 10px 20px; text-decoration: none; font-weight: bold;">Go to Dashboard</a>
-          </div>
-        `,
-      });
-
-      // 4. Email to Admin (Confirmation)
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: process.env.EMAIL_USER,
-        subject: "Enrollment Approved Successfully",
-        html: `<p>You successfully approved <strong>${enrollment.user.name}</strong> for <strong>${enrollment.course.title}</strong>.</p>`,
-      });
-
-      return NextResponse.json({ success: true, message: "Enrollment Approved" });
     }
 
-    // --- CASE 2: REJECT ---
-    else if (action === "reject") {
-      // 1. Update Status
-      enrollment.status = "rejected";
-      await enrollment.save();
+    // 3. Create New Enrollment Record
+    // This is the most critical part usually missing in admin actions
+    const newEnrollment = await Enrollment.create({
+      student: userId,
+      course: courseId,
+      enrolledAt: new Date(),
+      status: "active",
+      progress: 0,
+      completedLectures: [],
+      paymentId: "manual_admin_entry", // Marker to know admin added this
+      amountPaid: 0,
+    });
 
-      // Note: User ke courses mein add nahi karenge.
+    // 4. Update User Model
+    // Add the course ID to the user's 'courses' array
+    await User.findByIdAndUpdate(userId, {
+      $addToSet: { courses: courseId },
+    });
 
-      // 2. Email to User (Rejection Notice)
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: enrollment.user.email,
-        subject: "Enrollment Status Update - LearnR",
-        html: `
-          <div style="font-family: sans-serif; padding: 20px;">
-            <h2 style="color: red;">Enrollment Rejected</h2>
-            <p>Hello <strong>${enrollment.user.name}</strong>,</p>
-            <p>Your enrollment request for <strong>${enrollment.course.title}</strong> has been rejected by the admin.</p>
-            <p>If you think this is a mistake or if you have already paid, please contact support immediately.</p>
-            <p>Transaction ID: ${enrollment.transactionId}</p>
-            <a href="${process.env.NEXT_PUBLIC_APP_URL}/contact">Contact Support</a>
-          </div>
-        `,
-      });
+    // 5. Update Course Model
+    // Add the user ID to the course's 'students' array
+    await Course.findByIdAndUpdate(courseId, {
+      $addToSet: { students: userId },
+    });
 
-      return NextResponse.json({ success: true, message: "Enrollment Rejected" });
-    }
-
-    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
-
+    return NextResponse.json(
+      {
+        message: "Enrollment successful",
+        enrollment: newEnrollment,
+      },
+      { status: 201 }
+    );
   } catch (error) {
-    console.error("Admin Action Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Manual Enrollment Error:", error);
+    return NextResponse.json(
+      { message: "Failed to enroll user due to server error" },
+      { status: 500 }
+    );
   }
 }

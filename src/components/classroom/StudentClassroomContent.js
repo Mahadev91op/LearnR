@@ -1,5 +1,5 @@
 "use client";
-import { PlayCircle, FileText, Video } from "lucide-react";
+import { PlayCircle, FileText } from "lucide-react";
 
 // Existing Imports
 import StudentNoticeBoard from "./StudentNoticeBoard"; 
@@ -7,7 +7,10 @@ import StudentSyllabusViewer from "./StudentSyllabusViewer";
 import StudentLectureViewer from "./StudentLectureViewer";
 import StudentMaterialsViewer from "./StudentMaterialsViewer";
 
-// 1. OVERVIEW TAB (Original Design Preserved)
+// IMPORTANT: Import the Live Viewer Component
+import StudentLiveViewer from "./StudentLiveViewer"; 
+
+// 1. OVERVIEW TAB
 const OverviewTab = ({ course }) => (
   <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -28,26 +31,7 @@ const OverviewTab = ({ course }) => (
   </div>
 );
 
-// 2. LIVE TAB (Original Design Preserved)
-const LiveTab = () => (
-  <div className="flex flex-col h-[calc(100vh-80px)] md:flex-row bg-black overflow-hidden animate-in fade-in duration-300">
-     <div className="flex-1 bg-[#111] relative flex items-center justify-center">
-         <div className="text-center p-8">
-             <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-                <Video size={40} className="text-gray-500" />
-             </div>
-             <h3 className="text-xl font-bold text-white mb-2">Waiting for Host...</h3>
-             <p className="text-gray-500 text-sm">The live class hasn't started yet. Please wait.</p>
-         </div>
-     </div>
-     <div className="w-full md:w-80 bg-[#0f0f0f] border-l border-white/10 flex flex-col p-4">
-         <div className="text-sm font-bold text-gray-500 uppercase mb-4">Live Chat</div>
-         <div className="flex-1 flex items-center justify-center text-gray-600 text-xs">Chat disabled until class starts</div>
-     </div>
-  </div>
-);
-
-// 3. GENERIC LIST TAB (Original Design Preserved)
+// 3. GENERIC LIST TAB
 const GenericListTab = ({ type }) => (
   <div className="p-6 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4">
     <h2 className="text-2xl font-bold text-white capitalize mb-6">{type}</h2>
@@ -70,22 +54,22 @@ const GenericListTab = ({ type }) => (
   </div>
 );
 
-export default function StudentClassroomContent({ activeTab, courseData }) {
+// MAIN EXPORT
+export default function StudentClassroomContent({ activeTab, courseData, studentName }) {
   const courseId = courseData?._id;
 
   switch (activeTab) {
     case "overview": return <OverviewTab course={courseData} />;
-    case "live": return <LiveTab />;
+    
+    // UPDATED: Pass studentName to LiveViewer
+    case "live": return <StudentLiveViewer courseId={courseId} studentName={studentName || "Student"} />;
+    
     case "notices": return <StudentNoticeBoard courseId={courseId} />;
     case "syllabus": return <StudentSyllabusViewer courseId={courseId} />;
     case "lectures": return <StudentLectureViewer courseId={courseId} />;
     case "materials": return <StudentMaterialsViewer courseId={courseId} />;
-
-    // --- NEW TABS ---
     case "fees": return <div className="p-10 text-center text-gray-500">My Fees (Coming Soon)</div>;
     case "attendance": return <div className="p-10 text-center text-gray-500">My Attendance (Coming Soon)</div>;
-    // ----------------
-
     case "assignments": return <GenericListTab type="assignments" />;
     case "tests": return <GenericListTab type="tests" />;
     default: return <div className="p-10 text-center text-gray-500">Coming Soon</div>;

@@ -9,26 +9,39 @@ export default function StudentClassroomPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
   const [course, setCourse] = useState(null);
+  const [student, setStudent] = useState(null); // New State for Student
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
     if (!id) return;
-    const fetchCourse = async () => {
+
+    const initData = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/admin/courses/${id}`); 
-        if (!res.ok) throw new Error("Course not found");
-        const data = await res.json();
-        setCourse(data);
+        
+        // 1. Get Course Data
+        const courseRes = await fetch(`/api/admin/courses/${id}`); 
+        if (!courseRes.ok) throw new Error("Course not found");
+        const courseData = await courseRes.json();
+        setCourse(courseData);
+
+        // 2. Get Current Student Info (For Name in Chat)
+        const userRes = await fetch("/api/auth/me");
+        if (userRes.ok) {
+            const userData = await userRes.json();
+            setStudent(userData.user);
+        }
+
       } catch (err) {
         setError("Unable to load classroom. Please try again.");
       } finally {
         setLoading(false);
       }
     };
-    fetchCourse();
+
+    initData();
   }, [id]);
 
   if (loading) {
@@ -59,7 +72,12 @@ export default function StudentClassroomPage({ params }) {
        />
 
        <div className="flex-1 relative h-full overflow-y-auto scroll-smooth md:ml-64 pt-14 pb-20 md:py-0 md:pb-0">
-          <StudentClassroomContent activeTab={activeTab} courseData={course} />
+          {/* Pass studentName to content */}
+          <StudentClassroomContent 
+            activeTab={activeTab} 
+            courseData={course} 
+            studentName={student?.name} 
+          />
        </div>
     </div>
   );

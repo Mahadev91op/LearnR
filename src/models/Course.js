@@ -11,9 +11,18 @@ const CourseSchema = new mongoose.Schema(
     students: { type: Number, default: 0 },
     category: { type: String, required: true },
     gradient: { type: String, required: true },
-    // New Fields for Admin Control
-    isLocked: { type: Boolean, default: false }, // Agar true hai, to enroll nahi kar payenge
-    isActive: { type: Boolean, default: true },  // Agar false hai, to course dikhega hi nahi (Draft mode)
+    
+    // --- IMPORTANCE: Yeh field honi chahiye ---
+    liveRoom: {
+      isLive: { type: Boolean, default: false },
+      youtubeId: { type: String, default: "" },
+      topic: { type: String, default: "" },
+      startedAt: { type: Date }
+    },
+    // ------------------------------------------
+
+    isLocked: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
 );

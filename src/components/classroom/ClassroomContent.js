@@ -1,12 +1,14 @@
 "use client";
-import { useState } from "react";
-import { Mic, MicOff, Video as VideoIcon, VideoOff, Send, Book, File } from "lucide-react";
+import { Book, File } from "lucide-react";
 
 // Existing Imports
 import NoticeBoard from "./NoticeBoard"; 
 import SyllabusManager from "./SyllabusManager";
 import LectureManager from "./LectureManager";
 import MaterialsManager from "./MaterialsManager";
+
+// New Import (Created in previous step)
+import LiveClassManager from "./LiveClassManager";
 
 // 1. OVERVIEW TAB (Original Design Preserved)
 const OverviewTab = ({ course }) => (
@@ -37,52 +39,7 @@ const OverviewTab = ({ course }) => (
   </div>
 );
 
-// 2. LIVE CLASS TAB (Original Design Preserved)
-const LiveTab = () => {
-  const [isLive, setIsLive] = useState(false);
-  const [mic, setMic] = useState(true);
-  const [cam, setCam] = useState(true);
-  
-  return (
-    <div className="flex flex-col h-[calc(100vh-80px)] md:flex-row bg-black overflow-hidden animate-in fade-in duration-300">
-       {/* Stage Area */}
-       <div className="flex-1 bg-[#111] relative flex flex-col">
-          <div className="flex-1 flex items-center justify-center p-4 relative">
-             <div className="relative w-full h-full max-h-[80vh] aspect-video bg-black rounded-2xl border border-white/10 overflow-hidden flex items-center justify-center group">
-                 {cam ? (
-                    <div className="text-center">
-                        <div className="w-20 h-20 bg-yellow-400 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl font-bold text-black animate-pulse">A</div>
-                        <p className="text-gray-400 text-sm font-medium">{isLive ? "You are LIVE" : "Preview Mode"}</p>
-                    </div>
-                 ) : (
-                    <div className="flex flex-col items-center text-gray-600"><VideoOff size={40}/><p className="mt-2 text-xs">Camera Off</p></div>
-                 )}
-                 <div className="absolute top-4 left-4 bg-black/40 backdrop-blur p-2 rounded-lg text-white">
-                    {mic ? <Mic size={16} className="text-green-400"/> : <MicOff size={16} className="text-red-400"/>}
-                 </div>
-             </div>
-          </div>
-          {/* Controls */}
-          <div className="h-16 bg-[#0a0a0a] border-t border-white/10 flex items-center justify-center gap-4">
-              <button onClick={() => setMic(!mic)} className={`p-3 rounded-full ${mic ? 'bg-white/10 text-white' : 'bg-red-500/20 text-red-500'}`}>{mic ? <Mic size={20}/> : <MicOff size={20}/>}</button>
-              <button onClick={() => setCam(!cam)} className={`p-3 rounded-full ${cam ? 'bg-white/10 text-white' : 'bg-red-500/20 text-red-500'}`}>{cam ? <VideoIcon size={20}/> : <VideoOff size={20}/>}</button>
-              <button onClick={() => setIsLive(!isLive)} className={`px-6 py-2 rounded-full font-bold text-sm ${isLive ? 'bg-red-500 text-white' : 'bg-yellow-400 text-black'}`}>{isLive ? "END LIVE" : "GO LIVE"}</button>
-          </div>
-       </div>
-       {/* Chat Area */}
-       <div className="w-full md:w-80 bg-[#0f0f0f] border-l border-white/10 flex flex-col">
-          <div className="p-3 border-b border-white/10 text-sm font-bold text-gray-400 uppercase">Live Chat</div>
-          <div className="flex-1 p-4 flex items-center justify-center text-gray-600 text-sm">No messages yet</div>
-          <div className="p-3 bg-[#0a0a0a] border-t border-white/10 flex gap-2">
-             <input className="flex-1 bg-white/5 rounded-full px-4 text-sm text-white outline-none" placeholder="Type..." />
-             <button className="p-2 bg-yellow-400 rounded-full text-black"><Send size={16}/></button>
-          </div>
-       </div>
-    </div>
-  );
-};
-
-// 3. GENERIC LIST TAB (Original Design Preserved)
+// 2. GENERIC LIST TAB (Original Design Preserved)
 const GenericListTab = ({ type, data }) => (
   <div className="p-6 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4">
     <div className="flex justify-between items-center mb-6">
@@ -118,7 +75,9 @@ export default function ClassroomContent({ activeTab, courseData }) {
 
   switch (activeTab) {
     case "overview": return <OverviewTab course={courseData} />;
-    case "live": return <LiveTab />;
+    
+    // UPDATED: Using the new separate component
+    case "live": return <LiveClassManager courseId={courseId} />;
     
     case "notices": return <NoticeBoard courseId={courseId} isAdmin={isAdmin} />;
     case "syllabus": return <SyllabusManager courseId={courseId} />;
