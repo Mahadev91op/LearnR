@@ -23,12 +23,27 @@ export async function connectDB() {
       bufferCommands: false,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      return mongoose;
-    });
+    // FIX: Error handling add kiya hai taaki connection fail hone par retry ho sake
+    cached.promise = mongoose.connect(MONGODB_URI, opts)
+      .then((mongoose) => {
+        return mongoose;
+      })
+      .catch((error) => {
+        // Agar connection fail ho jaye, to promise ko null kar dein
+        // Taaki agli request par dobara connect karne ki koshish ho
+        cached.promise = null;
+        console.error("MongoDB Connection Failed:", error);
+        throw error;
+      });
   }
 
-  cached.conn = await cached.promise;
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    throw e;
+  }
+
   return cached.conn;
 }
 

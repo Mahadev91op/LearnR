@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { connectToDB } from "@/lib/db";
+import connectDB from "@/lib/db"; // FIX: Import correct function name (default export)
 import Enrollment from "@/models/Enrollment";
 import User from "@/models/User";
 import Course from "@/models/Course";
 
 export async function POST(req) {
   try {
-    await connectToDB();
+    await connectDB(); // FIX: Call the correct function
     const body = await req.json();
     const { userId, courseId } = body;
 
@@ -32,7 +32,6 @@ export async function POST(req) {
     }
 
     // 3. Create New Enrollment Record
-    // This is the most critical part usually missing in admin actions
     const newEnrollment = await Enrollment.create({
       student: userId,
       course: courseId,
