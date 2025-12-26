@@ -7,7 +7,12 @@ import { AuthProvider } from "@/components/shared/AuthContext";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
-const inter = Inter({ subsets: ["latin"] });
+// FIX: 'display: swap' add kiya gaya hai taaki text turant visible ho
+const inter = Inter({ 
+  subsets: ["latin"],
+  display: 'swap', 
+  variable: '--font-inter', // CSS Variable (Optional, better performance)
+});
 
 export const metadata = {
   title: "LearnR - The Future of English Learning",
@@ -16,20 +21,19 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    // FIX: suppressHydrationWarning yahan add kiya gaya hai
     <html lang="en" suppressHydrationWarning={true}>
       <body className={inter.className} suppressHydrationWarning={true}>
         <AuthProvider>
           <ToastProvider>
             <Navbar />
-            {children}
             
-            {/* Vercel Analytics */}
+            {/* Main content wrapper optimization */}
+            <main className="min-h-screen">
+              {children}
+            </main>
+            
             <Analytics />
-            
-            {/* SpeedInsights */}
             <SpeedInsights />
-            
             <Footer />
           </ToastProvider>
         </AuthProvider>
