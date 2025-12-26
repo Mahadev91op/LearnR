@@ -10,6 +10,9 @@ import StudentMaterialsViewer from "./StudentMaterialsViewer";
 // IMPORTANT: Import the Live Viewer Component
 import StudentLiveViewer from "./StudentLiveViewer"; 
 
+// --- NEW IMPORT: Import the new Test Viewer Component ---
+import StudentTestViewer from "./StudentTestViewer"; 
+
 // 1. OVERVIEW TAB
 const OverviewTab = ({ course }) => (
   <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -31,7 +34,7 @@ const OverviewTab = ({ course }) => (
   </div>
 );
 
-// 3. GENERIC LIST TAB
+// 3. GENERIC LIST TAB (Used for Assignments)
 const GenericListTab = ({ type }) => (
   <div className="p-6 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4">
     <h2 className="text-2xl font-bold text-white capitalize mb-6">{type}</h2>
@@ -61,17 +64,22 @@ export default function StudentClassroomContent({ activeTab, courseData, student
   switch (activeTab) {
     case "overview": return <OverviewTab course={courseData} />;
     
-    // UPDATED: Pass studentName to LiveViewer
+    // Live Viewer
     case "live": return <StudentLiveViewer courseId={courseId} studentName={studentName || "Student"} />;
     
+    // Existing Viewers
     case "notices": return <StudentNoticeBoard courseId={courseId} />;
     case "syllabus": return <StudentSyllabusViewer courseId={courseId} />;
     case "lectures": return <StudentLectureViewer courseId={courseId} />;
     case "materials": return <StudentMaterialsViewer courseId={courseId} />;
+    
+    // --- UPDATED: Tests Tab now uses the new StudentTestViewer ---
+    case "tests": return <StudentTestViewer courseId={courseId} />;
+    
+    // Others
+    case "assignments": return <GenericListTab type="assignments" />;
     case "fees": return <div className="p-10 text-center text-gray-500">My Fees (Coming Soon)</div>;
     case "attendance": return <div className="p-10 text-center text-gray-500">My Attendance (Coming Soon)</div>;
-    case "assignments": return <GenericListTab type="assignments" />;
-    case "tests": return <GenericListTab type="tests" />;
     default: return <div className="p-10 text-center text-gray-500">Coming Soon</div>;
   }
 }
