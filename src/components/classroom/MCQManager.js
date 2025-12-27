@@ -12,6 +12,7 @@ import jsPDF from "jspdf";
 // IMPORT THE COMPONENTS
 import MCQEditor from "./MCQEditor";
 import TestAnalyticsDashboard from "./TestAnalyticsDashboard"; 
+import LiveExamMonitor from "./LiveExamMonitor"; // <--- 1. NEW IMPORT
 
 export default function MCQManager({ courseId, onBack }) {
   // --- STATES ---
@@ -25,9 +26,11 @@ export default function MCQManager({ courseId, onBack }) {
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false); 
   
-  // Selection
-  const [selectedTestId, setSelectedTestId] = useState(null); // For Editor
-  const [selectedAnalyticsTestId, setSelectedAnalyticsTestId] = useState(null); // For Analytics
+  // Selection States
+  const [selectedTestId, setSelectedTestId] = useState(null); // For Editor (Draft/Scheduled)
+  const [selectedAnalyticsTestId, setSelectedAnalyticsTestId] = useState(null); // For Analytics (Completed)
+  const [selectedLiveTestId, setSelectedLiveTestId] = useState(null); // <--- 2. NEW STATE FOR LIVE
+  
   const [selectedTestForDownload, setSelectedTestForDownload] = useState(null); 
   const [selectedTestForPreview, setSelectedTestForPreview] = useState(null); 
   const [isDownloading, setIsDownloading] = useState(false);
@@ -54,9 +57,13 @@ export default function MCQManager({ courseId, onBack }) {
   };
 
   useEffect(() => {
-    if(courseId && !selectedTestId && !selectedAnalyticsTestId) fetchTests(); 
-  }, [courseId, selectedTestId, selectedAnalyticsTestId]);
+    // Agar koi specific page open nahi hai, tabhi refresh karein
+    if(courseId && !selectedTestId && !selectedAnalyticsTestId && !selectedLiveTestId) fetchTests(); 
+  }, [courseId, selectedTestId, selectedAnalyticsTestId, selectedLiveTestId]);
 
+  // ... (handleCreate, toggleStatus, handleDelete, generatePDF functions same rahenge) ...
+  // (Main code ki baki functions me koi change nahi hai, unhe waisa hi rakhein)
+  
   // 2. CREATE TEST HANDLER
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -249,7 +256,8 @@ export default function MCQManager({ courseId, onBack }) {
       setPreviewModalOpen(true);
   };
 
-  // --- RENDER CONDITION ---
+
+  // --- RENDER CONDITION (UPDATED) ---
   if (selectedTestId) {
     return <MCQEditor testId={selectedTestId} onBack={() => setSelectedTestId(null)} />;
   }
@@ -258,11 +266,20 @@ export default function MCQManager({ courseId, onBack }) {
     return <TestAnalyticsDashboard testId={selectedAnalyticsTestId} onBack={() => setSelectedAnalyticsTestId(null)} />;
   }
 
+  // 3. New Condition for LIVE Page
+  if (selectedLiveTestId) {
+    return <LiveExamMonitor 
+              testId={selectedLiveTestId} 
+              onBack={() => { setSelectedLiveTestId(null); fetchTests(); }} 
+           />;
+  }
+
   // --- MAIN CARD LIST ---
   const filteredTests = tests.filter(t => t.title?.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+      {/* ... (Header aur Back button code same rahega) ... */}
       <button onClick={onBack} className="mb-6 flex items-center text-gray-400 hover:text-white transition-colors text-sm font-medium">
         <ArrowLeft size={16} className="mr-2"/> Back to Selection
       </button>
@@ -313,12 +330,14 @@ export default function MCQManager({ courseId, onBack }) {
                       )}
                    </div>
                    
-                   {/* Card Body - Logic Changed here */}
+                   {/* 4. UPDATED CLICK HANDLER LOGIC */}
                    <div onClick={() => {
-                        if (test.status === 'completed') {
-                            setSelectedAnalyticsTestId(test._id);
+                        if (test.status === 'live') {
+                            setSelectedLiveTestId(test._id); // <--- OPEN LIVE MONITOR
+                        } else if (test.status === 'completed') {
+                            setSelectedAnalyticsTestId(test._id); // OPEN ANALYTICS
                         } else {
-                            setSelectedTestId(test._id);
+                            setSelectedTestId(test._id); // OPEN EDITOR (Draft/Scheduled)
                         }
                    }}>
                         <h3 className="text-xl font-bold text-gray-100 mb-2 group-hover:text-yellow-400 transition-colors line-clamp-1 pr-20">{test.title}</h3>
@@ -337,7 +356,6 @@ export default function MCQManager({ courseId, onBack }) {
                             <Download size={18} strokeWidth={2.5}/>
                          </button>
 
-                         {/* View Analytics Button if Completed */}
                          {test.status === 'completed' && (
                              <button onClick={(e) => { e.stopPropagation(); setSelectedAnalyticsTestId(test._id); }} className="p-2 bg-blue-500/10 hover:bg-blue-500 text-blue-500 hover:text-white rounded-lg transition-all" title="View Result Analysis">
                                 <BarChart2 size={18} />
@@ -350,6 +368,7 @@ export default function MCQManager({ courseId, onBack }) {
                              </button>
                          )}
                          
+                         {/* Live Stop Button in Card (optional now since page has it too) */}
                          {test.status === 'live' && (
                              <button onClick={(e) => { e.stopPropagation(); toggleStatus(test._id, 'completed'); }} className="p-2 hover:bg-red-500/20 rounded-lg text-red-500 transition-colors"><StopCircle size={18} /></button>
                          )}
