@@ -5,6 +5,7 @@ const QuestionSchema = new mongoose.Schema({
   options: [{ type: String }], // Array of 4 options
   correctOption: { type: Number }, // Index 0-3
   marks: { type: Number, default: 1 },
+  description: { type: String }
 });
 
 const TestSchema = new mongoose.Schema({
