@@ -4,13 +4,14 @@ import {
   Search, Plus, Calendar, Clock, CheckSquare, 
   PlayCircle, StopCircle, Edit, Loader2, X, ArrowLeft,
   Download, FileText, CheckCircle, MonitorPlay, User, 
-  AlertCircle, Trash2, Power
+  AlertCircle, Trash2, Power, BarChart2
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import jsPDF from "jspdf"; 
 
-// IMPORT THE EDITOR
+// IMPORT THE COMPONENTS
 import MCQEditor from "./MCQEditor";
+import TestAnalyticsDashboard from "./TestAnalyticsDashboard"; 
 
 export default function MCQManager({ courseId, onBack }) {
   // --- STATES ---
@@ -25,7 +26,8 @@ export default function MCQManager({ courseId, onBack }) {
   const [previewModalOpen, setPreviewModalOpen] = useState(false); 
   
   // Selection
-  const [selectedTestId, setSelectedTestId] = useState(null); 
+  const [selectedTestId, setSelectedTestId] = useState(null); // For Editor
+  const [selectedAnalyticsTestId, setSelectedAnalyticsTestId] = useState(null); // For Analytics
   const [selectedTestForDownload, setSelectedTestForDownload] = useState(null); 
   const [selectedTestForPreview, setSelectedTestForPreview] = useState(null); 
   const [isDownloading, setIsDownloading] = useState(false);
@@ -52,8 +54,8 @@ export default function MCQManager({ courseId, onBack }) {
   };
 
   useEffect(() => {
-    if(courseId && !selectedTestId) fetchTests(); 
-  }, [courseId, selectedTestId]);
+    if(courseId && !selectedTestId && !selectedAnalyticsTestId) fetchTests(); 
+  }, [courseId, selectedTestId, selectedAnalyticsTestId]);
 
   // 2. CREATE TEST HANDLER
   const handleCreate = async (e) => {
@@ -79,10 +81,9 @@ export default function MCQManager({ courseId, onBack }) {
     }
   };
 
-  // 3. START/STOP TOGGLE (Fixed API URL)
+  // 3. START/STOP TOGGLE
   const toggleStatus = async (testId, newStatus) => {
     try {
-        // FIXED: Removed '/status' from URL to match the new route handler
         const res = await fetch(`/api/admin/tests/${testId}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
@@ -92,7 +93,6 @@ export default function MCQManager({ courseId, onBack }) {
         if(res.ok) {
             toast.success(newStatus === 'live' ? "Exam Started Successfully!" : "Exam Ended!");
             fetchTests();
-            // Update preview state if open
             if(selectedTestForPreview && selectedTestForPreview._id === testId) {
                 setSelectedTestForPreview(prev => ({...prev, status: newStatus}));
             }
@@ -102,14 +102,11 @@ export default function MCQManager({ courseId, onBack }) {
     } catch (err) { toast.error("Action failed"); }
   };
 
-  // 4. DELETE TEST (Cancel Exam)
+  // 4. DELETE TEST
   const handleDelete = async (testId) => {
       if(!confirm("Are you sure you want to CANCEL and DELETE this exam? This action cannot be undone.")) return;
-
       try {
-          const res = await fetch(`/api/admin/tests/${testId}`, {
-              method: "DELETE"
-          });
+          const res = await fetch(`/api/admin/tests/${testId}`, { method: "DELETE" });
           if(res.ok) {
               toast.success("Exam Cancelled & Deleted!");
               setPreviewModalOpen(false);
@@ -117,16 +114,13 @@ export default function MCQManager({ courseId, onBack }) {
           } else {
               toast.error("Failed to delete exam");
           }
-      } catch(err) {
-          toast.error("Error deleting exam");
-      }
+      } catch(err) { toast.error("Error deleting exam"); }
   };
 
   // 5. PDF GENERATOR
   const generatePDF = async (type) => {
     if (!selectedTestForDownload) return;
     setIsDownloading(true);
-
     try {
         let testData = selectedTestForDownload;
         if(!testData.questions || testData.questions.length === 0) {
@@ -243,7 +237,6 @@ export default function MCQManager({ courseId, onBack }) {
     }
   };
 
-  // 6. PREVIEW HANDLER
   const handleOpenPreview = async (test) => {
       let testData = test;
       if(!testData.questions || testData.questions.length === 0) {
@@ -256,18 +249,20 @@ export default function MCQManager({ courseId, onBack }) {
       setPreviewModalOpen(true);
   };
 
-  // --- RENDER EDITOR IF TEST SELECTED ---
+  // --- RENDER CONDITION ---
   if (selectedTestId) {
     return <MCQEditor testId={selectedTestId} onBack={() => setSelectedTestId(null)} />;
   }
+  
+  if (selectedAnalyticsTestId) {
+    return <TestAnalyticsDashboard testId={selectedAnalyticsTestId} onBack={() => setSelectedAnalyticsTestId(null)} />;
+  }
 
-  // --- MAIN RENDER ---
+  // --- MAIN CARD LIST ---
   const filteredTests = tests.filter(t => t.title?.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-      
-      {/* Back Button */}
       <button onClick={onBack} className="mb-6 flex items-center text-gray-400 hover:text-white transition-colors text-sm font-medium">
         <ArrowLeft size={16} className="mr-2"/> Back to Selection
       </button>
@@ -278,7 +273,6 @@ export default function MCQManager({ courseId, onBack }) {
            <h1 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-yellow-200 to-yellow-500">MCQ Manager</h1>
            <p className="text-gray-500 text-sm">Manage quizzes, entrance tests & practice sets</p>
         </div>
-
         <div className="flex w-full md:w-auto gap-3">
            <div className="relative flex-1 md:w-80 group">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-hover:text-yellow-400 transition-colors" size={18} />
@@ -290,7 +284,6 @@ export default function MCQManager({ courseId, onBack }) {
         </div>
       </div>
 
-      {/* Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
          {loading ? (
              <div className="col-span-full flex justify-center py-20"><Loader2 className="animate-spin text-yellow-500"/></div>
@@ -320,8 +313,14 @@ export default function MCQManager({ courseId, onBack }) {
                       )}
                    </div>
                    
-                   {/* Card Body */}
-                   <div onClick={() => setSelectedTestId(test._id)}>
+                   {/* Card Body - Logic Changed here */}
+                   <div onClick={() => {
+                        if (test.status === 'completed') {
+                            setSelectedAnalyticsTestId(test._id);
+                        } else {
+                            setSelectedTestId(test._id);
+                        }
+                   }}>
                         <h3 className="text-xl font-bold text-gray-100 mb-2 group-hover:text-yellow-400 transition-colors line-clamp-1 pr-20">{test.title}</h3>
                         <div className="space-y-2 mb-6 text-gray-400 text-xs">
                                 <div className="flex items-center gap-2"><Calendar size={14} /> {new Date(test.scheduledAt).toLocaleDateString()}</div>
@@ -334,20 +333,19 @@ export default function MCQManager({ courseId, onBack }) {
                       <div className="text-xs font-mono text-gray-500">{test.questions?.length || 0} Qs • {test.totalMarks} Marks</div>
                       
                       <div className="flex items-center gap-2">
-                         <button 
-                             onClick={(e) => { e.stopPropagation(); setSelectedTestForDownload(test); setDownloadModalOpen(true); }}
-                             className="p-2 bg-yellow-500/5 hover:bg-yellow-500 text-yellow-500 hover:text-black rounded-lg transition-all duration-300 shadow-[0_0_10px_rgba(234,179,8,0.05)] hover:shadow-[0_0_15px_rgba(234,179,8,0.4)]"
-                             title="Download Paper"
-                         >
+                         <button onClick={(e) => { e.stopPropagation(); setSelectedTestForDownload(test); setDownloadModalOpen(true); }} className="p-2 bg-yellow-500/5 hover:bg-yellow-500 text-yellow-500 hover:text-black rounded-lg transition-all shadow-[0_0_10px_rgba(234,179,8,0.05)] hover:shadow-[0_0_15px_rgba(234,179,8,0.4)]">
                             <Download size={18} strokeWidth={2.5}/>
                          </button>
 
+                         {/* View Analytics Button if Completed */}
+                         {test.status === 'completed' && (
+                             <button onClick={(e) => { e.stopPropagation(); setSelectedAnalyticsTestId(test._id); }} className="p-2 bg-blue-500/10 hover:bg-blue-500 text-blue-500 hover:text-white rounded-lg transition-all" title="View Result Analysis">
+                                <BarChart2 size={18} />
+                             </button>
+                         )}
+
                          {(test.status === 'scheduled' || test.status === 'draft') && (
-                             <button 
-                                onClick={(e) => { e.stopPropagation(); handleOpenPreview(test); }} 
-                                className="p-2 bg-white/5 hover:bg-green-500 text-gray-400 hover:text-black rounded-lg transition-all duration-300"
-                                title="Live Preview"
-                             >
+                             <button onClick={(e) => { e.stopPropagation(); handleOpenPreview(test); }} className="p-2 bg-white/5 hover:bg-green-500 text-gray-400 hover:text-black rounded-lg transition-all" title="Live Preview">
                                 <PlayCircle size={18} />
                              </button>
                          )}
@@ -394,7 +392,7 @@ export default function MCQManager({ courseId, onBack }) {
         </div>
       )}
 
-      {/* NEON DOWNLOAD POPUP */}
+      {/* DOWNLOAD MODAL */}
       {downloadModalOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-[#0a0a0a] w-full max-w-md rounded-3xl border border-yellow-500/30 shadow-[0_0_60px_-15px_rgba(234,179,8,0.3)] overflow-hidden relative group">
@@ -422,18 +420,14 @@ export default function MCQManager({ courseId, onBack }) {
         </div>
       )}
 
-      {/* --- LIVE PREVIEW MODAL (DARK NEON YELLOW THEME) --- */}
+      {/* PREVIEW MODAL */}
       {previewModalOpen && selectedTestForPreview && (
           <div className="fixed inset-0 z-[250] bg-black/95 flex flex-col animate-in fade-in duration-300 items-center justify-center p-4">
-             
-             {/* Neon Container */}
              <div className="w-full h-full max-w-7xl bg-[#050505] flex flex-col rounded-3xl overflow-hidden shadow-[0_0_80px_-20px_rgba(234,179,8,0.2)] border border-yellow-500/20 relative">
-                
-                {/* Header */}
+                {/* Header with Admin Controls */}
                 <div className="bg-[#0a0a0a] border-b border-white/10 p-5 flex flex-col md:flex-row justify-between items-center relative overflow-hidden gap-4 md:gap-0">
                     <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-yellow-500 via-orange-500 to-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.8)]"></div>
                     
-                    {/* Left: Title */}
                     <div className="flex items-center gap-4 relative z-10 w-full md:w-auto">
                         <div className="w-10 h-10 rounded-xl bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center text-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.2)] animate-pulse">
                            <MonitorPlay size={20} strokeWidth={2.5}/>
@@ -449,93 +443,33 @@ export default function MCQManager({ courseId, onBack }) {
                         </div>
                     </div>
 
-                    {/* Right: Admin Controls */}
                     <div className="flex items-center gap-3 relative z-10">
-                         {/* Cancel Button */}
-                         <button 
-                            onClick={() => handleDelete(selectedTestForPreview._id)}
-                            className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white font-bold text-xs rounded-lg transition-all border border-red-500/20"
-                            title="Delete/Cancel Exam"
-                         >
+                         <button onClick={() => handleDelete(selectedTestForPreview._id)} className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white font-bold text-xs rounded-lg transition-all border border-red-500/20">
                             <Trash2 size={16}/> <span className="hidden md:inline">CANCEL EXAM</span>
                          </button>
-
-                         {/* End Button */}
-                         <button 
-                            onClick={() => toggleStatus(selectedTestForPreview._id, 'completed')}
-                            className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-white text-gray-400 hover:text-black font-bold text-xs rounded-lg transition-all border border-white/10"
-                            title="End Exam for Everyone"
-                         >
+                         <button onClick={() => toggleStatus(selectedTestForPreview._id, 'completed')} className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-white text-gray-400 hover:text-black font-bold text-xs rounded-lg transition-all border border-white/10">
                             <Power size={16}/> <span className="hidden md:inline">END EXAM</span>
                          </button>
-
-                         {/* Launch Button */}
                          {selectedTestForPreview.status !== 'live' && (
-                            <button 
-                                onClick={() => toggleStatus(selectedTestForPreview._id, 'live')}
-                                className="group flex items-center gap-2 px-5 py-2 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-xs rounded-lg transition-all shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:shadow-[0_0_30px_rgba(234,179,8,0.6)] active:scale-95"
-                            >
-                                <PlayCircle size={18} className="group-hover:scale-110 transition-transform"/> 
-                                LAUNCH
+                            <button onClick={() => toggleStatus(selectedTestForPreview._id, 'live')} className="group flex items-center gap-2 px-5 py-2 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-xs rounded-lg transition-all shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:shadow-[0_0_30px_rgba(234,179,8,0.6)] active:scale-95">
+                                <PlayCircle size={18} className="group-hover:scale-110 transition-transform"/> LAUNCH
                             </button>
                          )}
-
-                         <button onClick={() => setPreviewModalOpen(false)} className="ml-2 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-all border border-white/5">
-                            <X size={18} />
-                         </button>
+                         <button onClick={() => setPreviewModalOpen(false)} className="ml-2 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-all border border-white/5"><X size={18} /></button>
                     </div>
                 </div>
 
-                {/* Content Area */}
-                <div className="flex-1 flex overflow-hidden relative">
-                    {/* Sidebar */}
-                    <div className="w-80 bg-[#080808] border-r border-white/5 p-6 hidden md:flex flex-col relative">
-                        {/* Student Profile Card */}
-                        <div className="flex items-center gap-4 mb-8 p-4 bg-[#111] border border-white/5 rounded-2xl relative overflow-hidden group">
-                            <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                            <div className="w-12 h-12 rounded-full bg-yellow-500 text-black flex items-center justify-center font-bold text-lg shadow-[0_0_15px_rgba(234,179,8,0.4)]">JD</div>
-                            <div>
-                                <p className="text-white font-bold">John Doe</p>
-                                <p className="text-gray-500 text-xs">Student ID: 2024001</p>
-                            </div>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                            <div className="flex justify-between items-center mb-4">
-                               <p className="text-gray-400 text-xs font-black uppercase tracking-widest">Question Palette</p>
-                               <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded text-gray-500">{selectedTestForPreview.questions?.length || 0} Qs</span>
-                            </div>
-                            
-                            <div className="grid grid-cols-5 gap-2.5">
-                                {selectedTestForPreview.questions?.map((_, i) => (
-                                    <div key={i} className={`aspect-square flex items-center justify-center text-xs font-bold rounded-lg transition-all cursor-pointer hover:scale-105 ${i===0 ? 'bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.4)]' : 'bg-[#151515] text-gray-500 border border-white/5 hover:border-yellow-500/50 hover:text-white'}`}>
-                                        {i + 1}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Main Paper Area */}
-                    <div className="flex-1 bg-[#050505] p-6 md:p-10 overflow-y-auto relative scroll-smooth">
+                {/* Content (Paper) */}
+                <div className="flex-1 bg-[#050505] p-6 md:p-10 overflow-y-auto relative scroll-smooth">
                         <div className="max-w-4xl mx-auto space-y-8 pb-10">
                             {selectedTestForPreview.questions?.map((q, idx) => (
                                 <div key={idx} className="group relative bg-[#0a0a0a] border border-white/5 rounded-3xl p-8 hover:border-yellow-500/30 transition-all duration-500 hover:shadow-[0_0_30px_-10px_rgba(234,179,8,0.1)]">
-                                    {/* Question Header */}
                                     <div className="flex justify-between items-start mb-6">
                                         <div className="flex gap-4">
                                             <span className="text-yellow-500 font-black text-xl md:text-2xl mt-0.5 shadow-black drop-shadow-lg">Q{idx + 1}.</span>
-                                            <h3 className="text-xl md:text-2xl font-bold text-gray-100 leading-relaxed font-sans">
-                                                {q.questionText}
-                                            </h3>
-                                        </div>
-                                        <div className="flex flex-col items-end gap-2">
-                                           <span className="bg-yellow-500/10 text-yellow-500 px-3 py-1 text-xs font-bold rounded-full border border-yellow-500/20 shadow-[0_0_10px_rgba(234,179,8,0.1)]">+1.0</span>
-                                           <span className="text-gray-600 text-[10px] font-mono">-0.25 Neg</span>
+                                            <h3 className="text-xl md:text-2xl font-bold text-gray-100 leading-relaxed font-sans">{q.questionText}</h3>
                                         </div>
                                     </div>
-
-                                    {/* Options */}
                                     <div className="space-y-3 pl-0 md:pl-10">
                                         {q.options.map((opt, optIdx) => (
                                             <div key={optIdx} className="group/opt relative flex items-center gap-5 p-4 rounded-xl border border-white/5 bg-[#121212] hover:bg-[#181818] hover:border-yellow-500/40 cursor-pointer transition-all duration-300">
@@ -548,19 +482,13 @@ export default function MCQManager({ courseId, onBack }) {
                                     </div>
                                 </div>
                             ))}
-
-                            {/* SUBMIT BUTTON AT BOTTOM */}
                             <div className="pt-10 flex justify-center">
                                 <button className="group relative px-10 py-4 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-lg rounded-2xl shadow-[0_0_30px_rgba(234,179,8,0.4)] hover:shadow-[0_0_50px_rgba(234,179,8,0.6)] transition-all transform hover:-translate-y-1 active:scale-95">
-                                    <span className="relative z-10 flex items-center gap-3">
-                                        SUBMIT EXAM <CheckCircle size={24} strokeWidth={3}/>
-                                    </span>
+                                    <span className="relative z-10 flex items-center gap-3">SUBMIT EXAM <CheckCircle size={24} strokeWidth={3}/></span>
                                 </button>
                             </div>
                         </div>
                     </div>
-                </div>
-
              </div>
           </div>
       )}
