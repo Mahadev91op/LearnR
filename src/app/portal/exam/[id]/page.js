@@ -1,45 +1,56 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Clock, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function ExamPortal({ params }) {
-  const { id } = params;
+  // 1. ✅ FIX: Params को unwrap करना (Next.js 15+)
+  const { id } = use(params);
+  
   const router = useRouter();
   
   const [test, setTest] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [answers, setAnswers] = useState({}); // { questionId: optionIndex }
-  const [timeLeft, setTimeLeft] = useState(0); // in seconds
+  const [answers, setAnswers] = useState({}); 
+  const [timeLeft, setTimeLeft] = useState(0); 
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Anti-Cheat States
   const [isTabActive, setIsTabActive] = useState(true);
-  const [countdown, setCountdown] = useState(20); // 20s warning timer
+  const [countdown, setCountdown] = useState(20); 
   const cheatIntervalRef = useRef(null);
 
   // 1. Fetch Exam Data (Secure)
   useEffect(() => {
+    if (!id) return;
+
     const fetchExam = async () => {
       try {
         const res = await fetch(`/api/exam/${id}/start`);
         const data = await res.json();
         
         if (!data.success) {
-          toast.error(data.message);
-          router.back(); // Redirect back if error
+          toast.error(data.message || "Failed to start exam");
+          
+          // ✅ FIX: Error पढ़ने के लिए 3 सेकंड रुकें, फिर Redirect करें
+          setTimeout(() => {
+            router.back();
+          }, 3000);
           return;
         }
 
         setTest(data.test);
         setTimeLeft(data.test.duration * 60);
-        // Try to force fullscreen
+        
+        // Fullscreen Mode Attempt
         if (document.documentElement.requestFullscreen) {
             document.documentElement.requestFullscreen().catch(() => {});
         }
       } catch (error) {
-        toast.error("Error loading exam");
+        console.error(error);
+        toast.error("Error loading exam environment");
+        setTimeout(() => router.back(), 3000);
       } finally {
         setLoading(false);
       }
@@ -49,12 +60,11 @@ export default function ExamPortal({ params }) {
 
   // 2. Submit Function (Memoized)
   const handleSubmit = useCallback(async (isAuto = false) => {
-    if (isSubmitting) return; // Prevent double click
+    if (isSubmitting) return;
     setIsSubmitting(true);
     
     const loadingToast = toast.loading(isAuto ? "Auto-Submitting..." : "Submitting Exam...");
     
-    // Convert answers object to array
     const formattedAnswers = Object.keys(answers).map(qId => ({
       questionId: qId,
       selectedOption: answers[qId]
@@ -69,7 +79,6 @@ export default function ExamPortal({ params }) {
       
       if (data.success) {
         toast.success("Exam Submitted!", { id: loadingToast });
-        // Redirect to Classroom after success
         window.location.href = "/dashboard/classroom"; 
       } else {
         toast.error(data.message, { id: loadingToast });
@@ -81,14 +90,14 @@ export default function ExamPortal({ params }) {
     }
   }, [answers, id, isSubmitting]);
 
-  // 3. Main Timer Logic
+  // 3. Timer Logic
   useEffect(() => {
     if (!timeLeft || isSubmitting) return;
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          handleSubmit(true); // TIME UP -> Auto Submit
+          handleSubmit(true); 
           return 0;
         }
         return prev - 1;
@@ -97,21 +106,18 @@ export default function ExamPortal({ params }) {
     return () => clearInterval(timer);
   }, [timeLeft, isSubmitting, handleSubmit]);
 
-
-  // 4. ANTI-CHEAT LOGIC (Visibility Change)
+  // 4. Anti-Cheat Logic
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // User left the tab
         setIsTabActive(false);
         setCountdown(20);
         
-        // Start 20s Countdown
         cheatIntervalRef.current = setInterval(() => {
           setCountdown((prev) => {
             if (prev <= 1) {
               clearInterval(cheatIntervalRef.current);
-              handleSubmit(true); // CAUGHT CHEATING -> Auto Submit
+              handleSubmit(true); 
               return 0;
             }
             return prev - 1;
@@ -119,7 +125,6 @@ export default function ExamPortal({ params }) {
         }, 1000);
 
       } else {
-        // User came back
         setIsTabActive(true);
         if (cheatIntervalRef.current) clearInterval(cheatIntervalRef.current);
         toast("⚠️ Don't switch tabs! Exam will auto-submit.", { 
@@ -129,7 +134,6 @@ export default function ExamPortal({ params }) {
       }
     };
 
-    // Disable Right Click & Copy
     const handleContextMenu = (e) => e.preventDefault();
     const handleCopy = (e) => { e.preventDefault(); toast.error("Copy/Paste disabled!"); };
 
@@ -149,9 +153,26 @@ export default function ExamPortal({ params }) {
 
   // --- RENDER ---
 
-  if (loading) return <div className="h-screen bg-[#0a0a0a] flex items-center justify-center text-yellow-400"><Loader2 className="animate-spin mr-2"/> Preparing Secure Environment...</div>;
+  if (loading) {
+    return (
+      <div className="h-screen bg-[#0a0a0a] flex items-center justify-center text-yellow-400">
+        <Loader2 className="animate-spin mr-2"/> Preparing Secure Environment...
+      </div>
+    );
+  }
 
-  // WARNING OVERLAY (When tab is switched)
+  // ✅ FIX: अगर Test डेटा null है, तो Crash से बचाओ और Message दिखाओ
+  if (!test) {
+    return (
+      <div className="h-screen bg-[#0a0a0a] flex flex-col items-center justify-center text-red-500">
+        <AlertTriangle size={48} className="mb-4" />
+        <h2 className="text-xl font-bold">Unable to load exam</h2>
+        <p className="text-gray-500 mt-2">Redirecting to classroom...</p>
+      </div>
+    );
+  }
+
+  // Warning Overlay
   if (!isTabActive) {
     return (
       <div className="fixed inset-0 z-50 bg-red-900 flex flex-col items-center justify-center text-white text-center p-4">
@@ -169,29 +190,31 @@ export default function ExamPortal({ params }) {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-gray-200 select-none pb-24">
       
-      {/* Fixed Top Bar */}
+      {/* Top Bar */}
       <div className="fixed top-0 left-0 right-0 bg-[#111] border-b border-white/10 p-4 flex justify-between items-center z-40 shadow-xl">
-        <h2 className="font-bold text-lg truncate max-w-[200px] md:max-w-md text-gray-300">{test.title}</h2>
+        <h2 className="font-bold text-lg truncate max-w-[200px] md:max-w-md text-gray-300">
+          {test.title}
+        </h2>
         <div className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono font-bold text-xl transition-colors ${timeLeft < 300 ? 'bg-red-500/20 text-red-500 animate-pulse' : 'bg-blue-500/10 text-blue-400'}`}>
           <Clock size={20} />
           {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
         </div>
       </div>
 
-      {/* Questions List */}
+      {/* Questions */}
       <div className="max-w-4xl mx-auto pt-24 px-4 md:px-8">
         {test.questions.map((q, index) => (
           <div key={q._id} className="mb-8 p-6 bg-[#111] rounded-xl border border-white/5 hover:border-white/10 transition-colors">
             
-            {/* Question Text */}
             <div className="flex justify-between items-start mb-4">
               <span className="text-sm text-gray-500 font-mono">Question {index + 1}</span>
               <span className="text-xs bg-white/5 px-2 py-1 rounded text-gray-400 border border-white/5">{q.marks} Mark</span>
             </div>
             
-            <p className="text-lg md:text-xl font-medium text-white mb-6 whitespace-pre-wrap leading-relaxed">{q.questionText}</p>
+            <p className="text-lg md:text-xl font-medium text-white mb-6 whitespace-pre-wrap leading-relaxed">
+              {q.questionText}
+            </p>
             
-            {/* Options */}
             <div className="space-y-3">
               {q.options.map((opt, optIndex) => (
                 <label 
@@ -209,7 +232,6 @@ export default function ExamPortal({ params }) {
                   </div>
                   <span className="text-sm md:text-base">{opt}</span>
                   
-                  {/* Invisible Radio Input */}
                   <input 
                     type="radio" 
                     name={`q-${q._id}`} 
@@ -223,7 +245,7 @@ export default function ExamPortal({ params }) {
         ))}
       </div>
 
-      {/* Footer Submit Button */}
+      {/* Footer */}
       <div className="fixed bottom-0 left-0 right-0 bg-[#0f0f0f] border-t border-white/10 p-4 z-40 backdrop-blur-lg bg-opacity-90">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <div className="text-sm text-gray-500 hidden md:block">
@@ -233,7 +255,7 @@ export default function ExamPortal({ params }) {
           <button 
             disabled={isSubmitting}
             onClick={() => {
-              if (window.confirm("Are you sure you want to submit? This action cannot be undone.")) {
+              if (window.confirm("Are you sure you want to submit?")) {
                 handleSubmit(false);
               }
             }}
