@@ -3,11 +3,13 @@ import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { 
   Search, Plus, Calendar, Clock, CheckSquare, 
-  PlayCircle, StopCircle, Edit, Loader2, X, ArrowLeft
+  PlayCircle, StopCircle, Edit, Loader2, X, ArrowLeft, 
+  Download, FileText, CheckCircle
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import jsPDF from "jspdf"; // npm install jspdf
 
-// Sidebar Import (Navbar hi Sidebar hai aapke project me)
+// Sidebar Import
 import ClassroomSidebar from "@/components/classroom/ClassroomNavbar"; 
 
 export default function MCQManagerPage({ params }) {
@@ -18,10 +20,15 @@ export default function MCQManagerPage({ params }) {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const [course, setCourse] = useState(null); // To store course title for sidebar
+  const [course, setCourse] = useState(null);
   const [tests, setTests] = useState([]);
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // --- DOWNLOAD MODAL STATES ---
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
+  const [selectedTestForDownload, setSelectedTestForDownload] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   
   // Create Form State
   const [formData, setFormData] = useState({
@@ -34,17 +41,15 @@ export default function MCQManagerPage({ params }) {
     isManualStart: false,
   });
 
-  // 1. FETCH DATA (Course + Tests)
+  // 1. FETCH DATA
   const fetchData = async () => {
     try {
-      // Fetch Course Details (For Sidebar Title)
       const courseRes = await fetch(`/api/admin/courses/${courseId}`);
       if (courseRes.ok) {
          const courseData = await courseRes.json();
          setCourse(courseData);
       }
 
-      // Fetch Tests
       const testsRes = await fetch(`/api/admin/courses/${courseId}/tests?type=mcq`);
       if (testsRes.ok) {
           const testsData = await testsRes.json();
@@ -68,18 +73,19 @@ export default function MCQManagerPage({ params }) {
     setIsSubmitting(true);
 
     try {
+      // Default status 'draft' (Building) rakha hai
       const res = await fetch(`/api/admin/courses/${courseId}/tests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, type: "mcq" }),
+        body: JSON.stringify({ ...formData, type: "mcq", status: "draft" }), 
       });
       
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create test");
       
-      toast.success("Quiz Created Successfully!");
+      toast.success("Exam Draft Created!");
       setIsModalOpen(false);
-      fetchData(); // Refresh list
+      fetchData();
       
       setFormData({
         title: "", description: "", scheduledDate: "",
@@ -101,7 +107,7 @@ export default function MCQManagerPage({ params }) {
             body: JSON.stringify({ status: newStatus })
         });
         if(res.ok) {
-            toast.success(`Exam is now ${newStatus}`);
+            toast.success(`Exam status updated to ${newStatus}`);
             fetchData();
         }
     } catch (err) {
@@ -109,11 +115,135 @@ export default function MCQManagerPage({ params }) {
     }
   };
 
-  // Sidebar Tab Handler: Agar koi aur tab click ho to wapas main page bhejo
-  const handleSidebarTabChange = (tab) => {
-     if (tab !== 'tests') {
-        router.push(`/admin/classroom/${courseId}`);
-     }
+  // 4. PDF GENERATOR FUNCTION (LearnR Style)
+  const generatePDF = async (type) => {
+    if (!selectedTestForDownload) return;
+    setIsDownloading(true);
+
+    try {
+        let testData = selectedTestForDownload;
+        // Agar questions list mein nahi hain, toh fetch karo
+        if(!testData.questions || testData.questions.length === 0) {
+             const res = await fetch(`/api/admin/tests/${testData._id}`);
+             if(res.ok) testData = await res.json();
+        }
+
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        
+        // --- HEADER DESIGN (Cyan Branding) ---
+        doc.setFillColor(6, 182, 212); // Cyan-500
+        doc.rect(0, 0, pageWidth, 24, 'F');
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(18);
+        doc.text("LearnR Academy", 14, 16);
+        
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text("Official Exam Paper", pageWidth - 40, 16);
+
+        // --- EXAM DETAILS ---
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("times", "bold");
+        doc.setFontSize(22);
+        doc.text(testData.title || "Untitled Exam", 14, 40);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(80, 80, 80);
+        const dateStr = new Date(testData.scheduledAt).toLocaleDateString();
+        doc.text(`Date: ${dateStr}  |  Duration: ${testData.duration} Mins  |  Max Marks: ${testData.totalMarks}`, 14, 48);
+
+        // Decorative Line
+        doc.setDrawColor(6, 182, 212);
+        doc.setLineWidth(0.8);
+        doc.line(14, 54, pageWidth - 14, 54);
+
+        // --- QUESTIONS LOOP ---
+        let yPos = 65;
+        
+        testData.questions.forEach((q, index) => {
+            // Page Break Check
+            if (yPos > pageHeight - 30) {
+                doc.addPage();
+                yPos = 20;
+                // Small Header on new page
+                doc.setFillColor(6, 182, 212); 
+                doc.rect(0, 0, pageWidth, 5, 'F');
+            }
+
+            // Question Text
+            doc.setFont("times", "bold");
+            doc.setFontSize(12);
+            doc.setTextColor(0, 0, 0);
+            
+            const questionTitle = `Q.${index + 1}  ${q.questionText}`;
+            const splitTitle = doc.splitTextToSize(questionTitle, pageWidth - 30);
+            doc.text(splitTitle, 14, yPos);
+            yPos += (splitTitle.length * 6) + 4;
+
+            // Options
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            doc.setTextColor(40, 40, 40);
+            
+            q.options.forEach((opt, optIndex) => {
+                const optLabel = String.fromCharCode(65 + optIndex); // A, B, C, D
+                doc.text(`(${optLabel}) ${opt}`, 20, yPos);
+                yPos += 6;
+            });
+
+            // --- ANSWER & EXPLANATION (Only if requested) ---
+            if (type === 'solution') {
+                yPos += 2;
+                // Box background for answer
+                doc.setFillColor(240, 253, 250); // Very light cyan
+                // Calculate height roughly
+                const descHeight = q.description ? 15 : 8;
+                doc.rect(14, yPos - 4, pageWidth - 28, descHeight, 'F');
+                
+                // Correct Option
+                doc.setTextColor(6, 182, 212); // Cyan Text
+                doc.setFont("helvetica", "bold");
+                const correctLabel = String.fromCharCode(65 + q.correctOption);
+                doc.text(`Correct Ans: (${correctLabel})`, 18, yPos + 2);
+                
+                // Explanation
+                if (q.description) {
+                   yPos += 6;
+                   doc.setFont("helvetica", "italic");
+                   doc.setTextColor(80, 80, 80);
+                   const cleanDesc = q.description.replace(/<[^>]*>?/gm, ''); // Remove HTML tags if any
+                   doc.text(`Exp: ${cleanDesc}`, 18, yPos + 2);
+                }
+                yPos += 10;
+            } else {
+                yPos += 8; // Space between questions if no solution
+            }
+        });
+
+        // --- FOOTER ---
+        const pageCount = doc.internal.getNumberOfPages();
+        for(let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text(`Page ${i} of ${pageCount} - LearnR Academy`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+        }
+
+        doc.save(`${testData.title.replace(/\s+/g, '_')}_${type}.pdf`);
+        toast.success("PDF Downloaded Successfully!");
+        setDownloadModalOpen(false);
+
+    } catch (error) {
+        console.error(error);
+        toast.error("Failed to generate PDF");
+    } finally {
+        setIsDownloading(false);
+    }
   };
 
   const filteredTests = tests.filter(t => 
@@ -129,32 +259,29 @@ export default function MCQManagerPage({ params }) {
   }
 
   return (
-    // FULL PAGE LAYOUT (Sidebar + Content)
     <div className="fixed inset-0 bg-[#050505] z-[100] overflow-hidden flex flex-col md:flex-row">
        
-       {/* 1. LEFT SIDEBAR (Persisted) */}
        <ClassroomSidebar 
-          activeTab="tests" // Always keep 'tests' active here
-          setActiveTab={handleSidebarTabChange} 
+          activeTab="tests" 
+          setActiveTab={(tab) => tab !== 'tests' && router.push(`/admin/classroom/${courseId}`)} 
           courseTitle={course?.title || "Loading..."} 
        />
 
-       {/* 2. MAIN CONTENT AREA */}
-       <div className="flex-1 relative h-full overflow-y-auto scroll-smooth md:ml-64 pt-14 pb-20 md:py-0 md:pb-0 bg-[#050505]">
-          
+       <div className="flex-1 relative h-full overflow-y-auto scroll-smooth md:ml-64 pt-14 pb-20 md:py-0 bg-[#050505]">
           <div className="min-h-full p-4 md:p-8">
-            {/* Back Button for Mobile/Desktop UX */}
+            
+            {/* Back Button */}
             <button onClick={() => router.push(`/admin/classroom/${courseId}`)} className="mb-6 flex items-center text-gray-400 hover:text-white transition-colors text-sm font-medium">
                <ArrowLeft size={16} className="mr-2"/> Back to Dashboard
             </button>
 
-            {/* --- PAGE HEADER --- */}
+            {/* --- HEADER --- */}
             <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 mb-10 animate-in fade-in slide-in-from-top-4">
                 <div>
-                <h1 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600">
-                    MCQ Manager
-                </h1>
-                <p className="text-gray-500 text-sm">Manage quizzes, entrance tests & practice sets</p>
+                    <h1 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600">
+                        MCQ Manager
+                    </h1>
+                    <p className="text-gray-500 text-sm">Create, manage and distribute exam papers</p>
                 </div>
 
                 <div className="flex w-full md:w-auto gap-3">
@@ -165,7 +292,7 @@ export default function MCQManagerPage({ params }) {
                             placeholder="Search exams..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full bg-[#111] border border-white/10 rounded-full py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all text-white"
+                            className="w-full bg-[#111] border border-white/10 rounded-full py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-cyan-500/50 text-white transition-all"
                         />
                     </div>
 
@@ -178,7 +305,7 @@ export default function MCQManagerPage({ params }) {
                 </div>
             </div>
 
-            {/* --- EXAM CARDS GRID --- */}
+            {/* --- CARDS GRID --- */}
             <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
                 {filteredTests.length === 0 ? (
                     <div className="col-span-full text-center py-20 bg-[#0a0a0a] border border-white/5 rounded-2xl">
@@ -186,7 +313,6 @@ export default function MCQManagerPage({ params }) {
                             <CheckSquare size={30}/>
                         </div>
                         <p className="text-gray-400 font-medium">No exams found</p>
-                        <p className="text-gray-600 text-sm mt-1">Create your first quiz to get started</p>
                     </div>
                 ) : (
                     filteredTests.map((test) => (
@@ -194,34 +320,44 @@ export default function MCQManagerPage({ params }) {
                         key={test._id}
                         className="group relative bg-[#0a0a0a] border border-white/5 hover:border-cyan-500/30 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_30px_-10px_rgba(34,211,238,0.15)]"
                         >
-                        {/* Status Badge */}
-                        <div className="absolute top-4 right-4">
+                        
+                        {/* --- UPDATED STATUS BADGES --- */}
+                        <div className="absolute top-4 right-4 z-10">
                             {test.status === 'live' ? (
-                                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-bold tracking-wider animate-pulse">
-                                <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> LIVE NOW
+                                <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black tracking-wider animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.2)]">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> LIVE
                                 </span>
                             ) : test.status === 'completed' ? (
-                                <span className="px-2.5 py-1 rounded-full bg-gray-800 text-gray-400 text-[10px] font-bold">ENDED</span>
+                                <span className="px-3 py-1 rounded-full bg-gray-800 text-gray-400 text-[10px] font-bold border border-white/10">
+                                   ENDED
+                                </span>
+                            ) : test.status === 'draft' ? (
+                                <span className="px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-500 text-[10px] font-bold border border-yellow-500/20">
+                                   BUILDING
+                                </span>
                             ) : (
-                                <span className="px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-[10px] font-bold">SCHEDULED</span>
+                                // Scheduled
+                                <span className="px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-[10px] font-bold border border-cyan-500/20">
+                                   UPCOMING
+                                </span>
                             )}
                         </div>
 
-                        {/* Card Content */}
+                        {/* Content */}
                         <div className="cursor-pointer" onClick={() => router.push(`/admin/classroom/${courseId}/tests/mcq/${test._id}`)}>
-                            <h3 className="text-xl font-bold text-gray-100 mb-2 group-hover:text-cyan-400 transition-colors line-clamp-1 pr-16">
+                            <h3 className="text-xl font-bold text-gray-100 mb-2 group-hover:text-cyan-400 transition-colors line-clamp-1 pr-20">
                                 {test.title}
                             </h3>
                             
                             <div className="space-y-2 mb-6">
                                 <div className="flex items-center gap-2 text-gray-400 text-xs">
-                                <Calendar size={14} />
-                                {new Date(test.scheduledAt).toLocaleDateString()}
+                                  <Calendar size={14} />
+                                  {new Date(test.scheduledAt).toLocaleDateString()}
                                 </div>
                                 <div className="flex items-center gap-2 text-gray-400 text-xs">
-                                <Clock size={14} />
-                                {new Date(test.scheduledAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} 
-                                <span className="text-gray-600">•</span> {test.duration} Mins
+                                  <Clock size={14} />
+                                  {new Date(test.scheduledAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} 
+                                  <span className="text-gray-600">•</span> {test.duration} Mins
                                 </div>
                             </div>
                         </div>
@@ -233,7 +369,17 @@ export default function MCQManagerPage({ params }) {
                             </div>
                             
                             <div className="flex items-center gap-2">
-                                {test.isManualStart && test.status === 'scheduled' && (
+                                {/* --- NEW DOWNLOAD BUTTON --- */}
+                                <button 
+                                   onClick={(e) => { e.stopPropagation(); setSelectedTestForDownload(test); setDownloadModalOpen(true); }}
+                                   className="p-2 bg-cyan-500/10 hover:bg-cyan-500 text-cyan-500 hover:text-black rounded-lg transition-all duration-300 shadow-[0_0_10px_rgba(34,211,238,0.05)] hover:shadow-[0_0_15px_rgba(34,211,238,0.4)]"
+                                   title="Download Paper"
+                                >
+                                    <Download size={18} strokeWidth={2.5} />
+                                </button>
+
+                                {/* Live/Stop Controls */}
+                                {(test.status === 'scheduled' || test.status === 'draft') && (
                                     <button 
                                     onClick={(e) => { e.stopPropagation(); toggleStatus(test._id, 'live'); }}
                                     className="p-2 hover:bg-green-500/20 rounded-lg text-green-500 transition-colors"
@@ -252,21 +398,16 @@ export default function MCQManagerPage({ params }) {
                                         <StopCircle size={18} />
                                     </button>
                                 )}
-
-                                <button className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors">
-                                    <Edit size={16} />
-                                </button>
                             </div>
                         </div>
                         </div>
                     ))
                 )}
             </div>
-
           </div>
        </div>
 
-      {/* --- CREATE MODAL (Overlay) --- */}
+      {/* --- CREATE MODAL --- */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
            <div className="bg-[#111] border border-white/10 w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl">
@@ -276,86 +417,90 @@ export default function MCQManagerPage({ params }) {
               </div>
               
               <form onSubmit={handleCreate} className="p-6 space-y-4">
-                 <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1">EXAM TITLE</label>
-                    <input 
+                 <input 
                       required
                       value={formData.title}
                       onChange={e => setFormData({...formData, title: e.target.value})}
-                      className="w-full bg-black border border-white/10 rounded-lg p-3 text-white focus:border-cyan-500 outline-none transition-colors"
-                      placeholder="e.g. Weekly Physics Test"
-                    />
-                 </div>
-
+                      className="w-full bg-black border border-white/10 rounded-lg p-3 text-white focus:border-cyan-500 outline-none"
+                      placeholder="Exam Title"
+                 />
                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 mb-1">DATE</label>
-                        <input 
-                          type="date"
-                          required
-                          value={formData.scheduledDate}
-                          onChange={e => setFormData({...formData, scheduledDate: e.target.value})}
-                          className="w-full bg-black border border-white/10 rounded-lg p-3 text-white focus:border-cyan-500 outline-none"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 mb-1">TIME</label>
-                        <input 
-                          type="time"
-                          required
-                          value={formData.scheduledTime}
-                          onChange={e => setFormData({...formData, scheduledTime: e.target.value})}
-                          className="w-full bg-black border border-white/10 rounded-lg p-3 text-white focus:border-cyan-500 outline-none"
-                        />
-                    </div>
+                    <input type="date" required value={formData.scheduledDate} onChange={e => setFormData({...formData, scheduledDate: e.target.value})} className="bg-black border border-white/10 rounded-lg p-3 text-white outline-none"/>
+                    <input type="time" required value={formData.scheduledTime} onChange={e => setFormData({...formData, scheduledTime: e.target.value})} className="bg-black border border-white/10 rounded-lg p-3 text-white outline-none"/>
                  </div>
-
                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 mb-1">DURATION (Mins)</label>
-                        <input 
-                          type="number"
-                          value={formData.duration}
-                          onChange={e => setFormData({...formData, duration: e.target.value})}
-                          className="w-full bg-black border border-white/10 rounded-lg p-3 text-white focus:border-cyan-500 outline-none"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 mb-1">TOTAL MARKS</label>
-                        <input 
-                          type="number"
-                          value={formData.totalMarks}
-                          onChange={e => setFormData({...formData, totalMarks: e.target.value})}
-                          className="w-full bg-black border border-white/10 rounded-lg p-3 text-white focus:border-cyan-500 outline-none"
-                        />
-                    </div>
+                    <input type="number" placeholder="Duration (min)" value={formData.duration} onChange={e => setFormData({...formData, duration: e.target.value})} className="bg-black border border-white/10 rounded-lg p-3 text-white outline-none"/>
+                    <input type="number" placeholder="Total Marks" value={formData.totalMarks} onChange={e => setFormData({...formData, totalMarks: e.target.value})} className="bg-black border border-white/10 rounded-lg p-3 text-white outline-none"/>
                  </div>
-
                  <div className="flex items-center gap-3 p-3 bg-cyan-900/10 border border-cyan-500/20 rounded-lg cursor-pointer" onClick={() => setFormData({...formData, isManualStart: !formData.isManualStart})}>
                     <div className={`w-5 h-5 rounded border flex items-center justify-center ${formData.isManualStart ? 'bg-cyan-500 border-cyan-500' : 'border-gray-500'}`}>
                         {formData.isManualStart && <CheckSquare size={14} className="text-black"/>}
                     </div>
-                    <div>
-                        <p className="text-sm font-bold text-cyan-100">Manual Start Mode</p>
-                        <p className="text-[10px] text-cyan-500/70">Admin must click "Start" button to launch exam</p>
-                    </div>
+                    <div><p className="text-sm font-bold text-cyan-100">Manual Start Mode</p></div>
                  </div>
 
-                 <button 
-                    type="submit" 
-                    disabled={isSubmitting}
-                    className={`w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-3 rounded-xl transition-colors mt-4 flex justify-center items-center gap-2 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                 >
-                    {isSubmitting ? (
-                        <>
-                           <Loader2 className="animate-spin" size={20}/> Creating...
-                        </>
-                    ) : (
-                        "Create & Save Quiz"
-                    )}
+                 <button type="submit" disabled={isSubmitting} className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-3 rounded-xl transition-colors mt-4 flex justify-center items-center gap-2">
+                    {isSubmitting ? <Loader2 className="animate-spin" size={20}/> : "Create Quiz"}
                  </button>
               </form>
            </div>
+        </div>
+      )}
+
+      {/* --- NEON DOWNLOAD POPUP MODAL (New) --- */}
+      {downloadModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-[#0a0a0a] w-full max-w-md rounded-3xl border border-cyan-500/30 shadow-[0_0_60px_-15px_rgba(6,182,212,0.3)] overflow-hidden relative group">
+                
+                {/* Neon Glow Effects */}
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 shadow-[0_0_20px_rgba(6,182,212,0.6)]"></div>
+                
+                <div className="p-8 text-center relative z-10">
+                    <button onClick={() => setDownloadModalOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"><X size={20}/></button>
+
+                    <div className="w-20 h-20 bg-cyan-500/5 rounded-full flex items-center justify-center mx-auto mb-6 text-cyan-400 border border-cyan-500/20 shadow-[0_0_30px_rgba(6,182,212,0.15)] animate-pulse">
+                        <Download size={36} />
+                    </div>
+                    
+                    <h2 className="text-3xl font-black text-white mb-2 tracking-tight">Download Paper</h2>
+                    <p className="text-gray-400 text-sm mb-8">
+                        Select format for <span className="text-cyan-400 font-bold">{selectedTestForDownload?.title}</span>
+                    </p>
+
+                    <div className="space-y-4">
+                        {/* Option 1: Question Only */}
+                        <button 
+                            onClick={() => generatePDF('question_paper')}
+                            disabled={isDownloading}
+                            className="w-full group/btn relative flex items-center gap-4 p-4 rounded-2xl border border-white/10 bg-[#121212] hover:border-cyan-500 hover:bg-cyan-950/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                            <div className="w-12 h-12 rounded-xl bg-gray-900 group-hover/btn:bg-cyan-500 group-hover/btn:text-black text-gray-400 flex items-center justify-center transition-all duration-300 border border-white/5">
+                                <FileText size={20} strokeWidth={2.5}/>
+                            </div>
+                            <div className="text-left flex-1">
+                                <p className="text-white font-bold text-lg group-hover/btn:text-cyan-400 transition-colors">Question Paper</p>
+                                <p className="text-[11px] text-gray-500 uppercase tracking-wide">Questions Only</p>
+                            </div>
+                            {isDownloading && <Loader2 className="animate-spin text-cyan-500"/>}
+                        </button>
+
+                        {/* Option 2: Full Solution */}
+                        <button 
+                            onClick={() => generatePDF('solution')}
+                            disabled={isDownloading}
+                            className="w-full group/btn relative flex items-center gap-4 p-4 rounded-2xl border border-white/10 bg-[#121212] hover:border-green-500 hover:bg-green-950/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                            <div className="w-12 h-12 rounded-xl bg-gray-900 group-hover/btn:bg-green-500 group-hover/btn:text-black text-gray-400 flex items-center justify-center transition-all duration-300 border border-white/5">
+                                <CheckCircle size={20} strokeWidth={2.5}/>
+                            </div>
+                            <div className="text-left flex-1">
+                                <p className="text-white font-bold text-lg group-hover/btn:text-green-400 transition-colors">Solution Key</p>
+                                <p className="text-[11px] text-gray-500 uppercase tracking-wide">With Answers & Logic</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
       )}
 

@@ -17,7 +17,7 @@ export async function GET(req, { params }) {
   }
 }
 
-// PUT: Update Everything
+// PUT: Update Test Details (Title, Questions, etc.)
 export async function PUT(req, { params }) {
   try {
     await connectDB();
@@ -44,7 +44,28 @@ export async function PUT(req, { params }) {
   }
 }
 
-// DELETE: Remove Test (NEW ADDITION)
+// PATCH: Update Status (Live/Completed etc.) -- NEW ADDITION
+export async function PATCH(req, { params }) {
+  try {
+    await connectDB();
+    const { id } = await params;
+    const { status } = await req.json();
+
+    const updatedTest = await Test.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+
+    if (!updatedTest) return NextResponse.json({ error: "Test not found" }, { status: 404 });
+
+    return NextResponse.json(updatedTest);
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to update status" }, { status: 500 });
+  }
+}
+
+// DELETE: Remove Test
 export async function DELETE(req, { params }) {
   try {
     await connectDB();
