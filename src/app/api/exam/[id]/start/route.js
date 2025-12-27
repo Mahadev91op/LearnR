@@ -1,56 +1,47 @@
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/db";
+import { connectDB } from "@/lib/db";
 import Test from "@/models/Test";
+import { getDataFromToken } from "@/lib/getDataFromToken";
+import Enrollment from "@/models/Enrollment";
 import Result from "@/models/Result";
-import { getDataFromToken } from "@/lib/getDataFromToken"; // Auth helper
 
 export async function GET(req, { params }) {
-  await dbConnect();
   try {
-    const user = await getDataFromToken(req); 
-    const { id } = params;
+    await connectDB();
+    const { id } = await params;
+    
+    // 1. Authenticate User
+    const userId = await getDataFromToken(req);
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const test = await Test.findById(id);
-    if (!test) return NextResponse.json({ success: false, message: "Test not found" });
+    // 2. Fetch Test
+    const test = await Test.findById(id).select("-questions.correctOption"); // Don't send correct answers!
+    if (!test) return NextResponse.json({ error: "Exam not found" }, { status: 404 });
 
-    // 1. Time Check (12 Hours Window)
-    const now = new Date();
-    const startTime = new Date(test.scheduledAt);
-    const endTime = new Date(startTime.getTime() + 12 * 60 * 60 * 1000); 
-
-    if (now < startTime) {
-      return NextResponse.json({ success: false, message: "Exam has not started yet." });
-    }
-    if (now > endTime) {
-      return NextResponse.json({ success: false, message: "Exam window is closed." });
+    // 3. Check Status
+    if (test.status !== 'live') {
+        return NextResponse.json({ error: "Exam is not live currently." }, { status: 403 });
     }
 
-    // 2. Check Duplicate Attempt
-    const existingResult = await Result.findOne({ testId: id, studentId: user.id });
+    // 4. Check Enrollment
+    const enrollment = await Enrollment.findOne({ courseId: test.courseId, studentId: userId });
+    if (!enrollment) {
+        return NextResponse.json({ error: "You are not enrolled in this course" }, { status: 403 });
+    }
+
+    // 5. Check if already attempted
+    const existingResult = await Result.findOne({ testId: id, studentId: userId });
     if (existingResult) {
-      return NextResponse.json({ success: false, message: "You have already attempted this test." });
+        return NextResponse.json({ error: "You have already submitted this exam." }, { status: 400 });
     }
 
-    // 3. SECURE RESPONSE: (Hide Correct Answer & Description)
-    const secureQuestions = test.questions.map(q => ({
-      _id: q._id,
-      questionText: q.questionText,
-      options: q.options,
-      marks: q.marks,
-      // NOTE: correctOption aur description yahan NAHI bhej rahe hain security ke liye
-    }));
-
-    return NextResponse.json({
-      success: true,
-      test: {
-        _id: test._id,
-        title: test.title,
-        duration: test.duration,
-        questions: secureQuestions
-      }
+    return NextResponse.json({ 
+        success: true, 
+        test: test 
     });
 
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message });
+    console.error(error);
+    return NextResponse.json({ error: "Failed to start exam" }, { status: 500 });
   }
 }

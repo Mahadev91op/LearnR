@@ -9,7 +9,7 @@ export default function TestAnalyticsDashboard({ testId, onBack }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [selectedStudent, setSelectedStudent] = useState(null); // For Paper View
+  const [selectedStudent, setSelectedStudent] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -258,9 +258,8 @@ export default function TestAnalyticsDashboard({ testId, onBack }) {
                                       {q.options.map((opt, optIdx) => {
                                           let optClass = "text-gray-400 p-3 rounded border border-transparent";
                                           
-                                          // Highlight Logic
-                                          if (optIdx === q.correctOption) optClass = "bg-green-500/20 text-green-400 border-green-500/30 font-bold"; // Always show correct answer
-                                          else if (optIdx === studentAns && !isCorrect) optClass = "bg-red-500/20 text-red-400 border-red-500/30 font-bold line-through"; // User's wrong answer
+                                          if (optIdx === q.correctOption) optClass = "bg-green-500/20 text-green-400 border-green-500/30 font-bold";
+                                          else if (optIdx === studentAns && !isCorrect) optClass = "bg-red-500/20 text-red-400 border-red-500/30 font-bold line-through";
 
                                           return (
                                               <div key={optIdx} className={`flex items-center gap-3 ${optClass}`}>

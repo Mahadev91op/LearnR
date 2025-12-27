@@ -1,69 +1,66 @@
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/db";
+import { connectDB } from "@/lib/db";
 import Test from "@/models/Test";
 import Result from "@/models/Result";
 import { getDataFromToken } from "@/lib/getDataFromToken";
 
 export async function POST(req, { params }) {
-  await dbConnect();
   try {
-    const user = await getDataFromToken(req);
-    const { id } = params;
-    // answers structure: [{ questionId, selectedOption }]
-    const { answers, isAutoSubmit } = await req.json(); 
+    await connectDB();
+    const { id } = await params;
+    const { answers, timeTaken } = await req.json(); // answers is array of option indexes
 
+    const userId = await getDataFromToken(req);
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    // 1. Fetch Original Test (With Correct Options)
     const test = await Test.findById(id);
-    if (!test) return NextResponse.json({ success: false, message: "Test not found" });
+    if (!test) return NextResponse.json({ error: "Test not found" }, { status: 404 });
 
-    // Check if already submitted (Double submission prevention)
-    const existing = await Result.findOne({ testId: id, studentId: user.id });
-    if(existing) {
-         return NextResponse.json({ success: true, message: "Already submitted." });
-    }
+    // 2. Calculate Score
+    let score = 0;
+    let correctCount = 0;
+    let wrongCount = 0;
 
-    // --- MARKS CALCULATION ---
-    let obtainedMarks = 0;
-    
-    // Map for fast lookup (Question ID -> Correct Option & Marks)
-    const correctAnswersMap = {};
-    test.questions.forEach(q => {
-      correctAnswersMap[q._id.toString()] = { correct: q.correctOption, marks: q.marks };
-    });
+    test.questions.forEach((q, index) => {
+        const userAns = answers[index];
+        const correctAns = q.correctOption;
 
-    const formattedAnswers = [];
-
-    if (answers && answers.length > 0) {
-        answers.forEach(ans => {
-          const questionData = correctAnswersMap[ans.questionId];
-          if (questionData) {
-            // Save what student selected
-            formattedAnswers.push({
-              questionId: ans.questionId,
-              selectedOption: ans.selectedOption
-            });
-    
-            // Check correctness
-            if (ans.selectedOption === questionData.correct) {
-              obtainedMarks += questionData.marks;
+        if (userAns !== undefined && userAns !== -1 && userAns !== null) {
+            if (userAns === correctAns) {
+                score += 1; // +1 for correct
+                correctCount++;
+            } else {
+                score -= 0.25; // -0.25 for wrong
+                wrongCount++;
             }
-          }
-        });
-    }
-
-    // Save Result to DB
-    await Result.create({
-      testId: id,
-      studentId: user.id,
-      answers: formattedAnswers,
-      obtainedMarks,
-      totalMarks: test.totalMarks,
-      status: isAutoSubmit ? 'auto-submitted' : 'completed'
+        }
     });
 
-    return NextResponse.json({ success: true, message: "Test submitted successfully!" });
+    // Ensure score isn't negative (optional, but good practice)
+    if (score < 0) score = 0;
+
+    // 3. Save Result
+    const newResult = await Result.create({
+        testId: id,
+        studentId: userId,
+        score,
+        totalMarks: test.totalMarks,
+        answers, // Save user responses for review
+        correctCount,
+        wrongCount,
+        timeTaken: timeTaken || 0,
+    });
+
+    return NextResponse.json({ 
+        success: true, 
+        message: "Exam submitted successfully",
+        resultId: newResult._id,
+        score 
+    });
 
   } catch (error) {
-    console.error("Submit Error:", error);
-    return NextResponse.json({ success: false, message: error.message });
+    console.error(error);
+    return NextResponse.json({ error: "Submission Failed" }, { status: 500 });
   }
 }

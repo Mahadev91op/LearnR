@@ -1,271 +1,286 @@
 "use client";
-import { useState, useEffect, useRef, useCallback, use } from "react";
-import { useRouter } from "next/navigation";
-import { AlertTriangle, Clock, Loader2 } from "lucide-react";
-import toast from "react-hot-toast";
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { 
+  Clock, ChevronRight, Menu, Flag, RotateCcw
+} from "lucide-react";
+import { toast } from "react-hot-toast";
 
-export default function ExamPortal({ params }) {
-  // 1. ✅ FIX: Params को unwrap करना (Next.js 15+)
-  const { id } = use(params);
-  
+export default function ExamPortalPage() {
   const router = useRouter();
-  
-  const [test, setTest] = useState(null);
+  const params = useParams();
+  const testId = params.id;
+
+  // --- STATES ---
   const [loading, setLoading] = useState(true);
-  const [answers, setAnswers] = useState({}); 
-  const [timeLeft, setTimeLeft] = useState(0); 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [test, setTest] = useState(null);
+  const [questions, setQuestions] = useState([]);
   
-  // Anti-Cheat States
-  const [isTabActive, setIsTabActive] = useState(true);
-  const [countdown, setCountdown] = useState(20); 
-  const cheatIntervalRef = useRef(null);
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [answers, setAnswers] = useState({}); 
+  const [markedForReview, setMarkedForReview] = useState({});
+  
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // 1. Fetch Exam Data (Secure)
+  // 1. FETCH EXAM DATA (Start Exam)
   useEffect(() => {
-    if (!id) return;
-
-    const fetchExam = async () => {
+    const startExam = async () => {
       try {
-        const res = await fetch(`/api/exam/${id}/start`);
-        const data = await res.json();
+        const res = await fetch(`/api/exam/${testId}/start`);
         
-        if (!data.success) {
-          toast.error(data.message || "Failed to start exam");
-          
-          // ✅ FIX: Error पढ़ने के लिए 3 सेकंड रुकें, फिर Redirect करें
-          setTimeout(() => {
-            router.back();
-          }, 3000);
-          return;
+        // Check if response is valid JSON
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            throw new Error("Server Error: Please try again later.");
+        }
+
+        const data = await res.json();
+
+        if (!res.ok) {
+           throw new Error(data.error || "Failed to start exam");
+        }
+
+        if (!data.test || !data.test.questions || data.test.questions.length === 0) {
+            throw new Error("Exam data is invalid or empty.");
         }
 
         setTest(data.test);
-        setTimeLeft(data.test.duration * 60);
+        setQuestions(data.test.questions);
         
-        // Fullscreen Mode Attempt
-        if (document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen().catch(() => {});
-        }
+        // Timer Logic
+        const durationSec = (data.test.duration || 60) * 60;
+        setTimeLeft(durationSec);
+        
+        setLoading(false); // Success: Stop Loading
+
       } catch (error) {
-        console.error(error);
-        toast.error("Error loading exam environment");
-        setTimeout(() => router.back(), 3000);
-      } finally {
-        setLoading(false);
+        console.error("Exam Error:", error);
+        toast.error(error.message);
+        router.replace("/dashboard"); // Error: Redirect to Dashboard
       }
     };
-    fetchExam();
-  }, [id, router]);
 
-  // 2. Submit Function (Memoized)
-  const handleSubmit = useCallback(async (isAuto = false) => {
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    
-    const loadingToast = toast.loading(isAuto ? "Auto-Submitting..." : "Submitting Exam...");
-    
-    const formattedAnswers = Object.keys(answers).map(qId => ({
-      questionId: qId,
-      selectedOption: answers[qId]
-    }));
+    if (testId) startExam();
+  }, [testId, router]);
 
-    try {
-      const res = await fetch(`/api/exam/${id}/submit`, {
-        method: "POST",
-        body: JSON.stringify({ answers: formattedAnswers, isAutoSubmit: isAuto }),
-      });
-      const data = await res.json();
-      
-      if (data.success) {
-        toast.success("Exam Submitted!", { id: loadingToast });
-        window.location.href = "/dashboard/classroom"; 
-      } else {
-        toast.error(data.message, { id: loadingToast });
-        setIsSubmitting(false);
-      }
-    } catch (error) {
-      toast.error("Submission failed. Check internet.", { id: loadingToast });
-      setIsSubmitting(false);
-    }
-  }, [answers, id, isSubmitting]);
-
-  // 3. Timer Logic
+  // 2. TIMER EFFECT
   useEffect(() => {
-    if (!timeLeft || isSubmitting) return;
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleSubmit(true); 
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [timeLeft, isSubmitting, handleSubmit]);
-
-  // 4. Anti-Cheat Logic
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setIsTabActive(false);
-        setCountdown(20);
-        
-        cheatIntervalRef.current = setInterval(() => {
-          setCountdown((prev) => {
-            if (prev <= 1) {
-              clearInterval(cheatIntervalRef.current);
-              handleSubmit(true); 
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-
-      } else {
-        setIsTabActive(true);
-        if (cheatIntervalRef.current) clearInterval(cheatIntervalRef.current);
-        toast("⚠️ Don't switch tabs! Exam will auto-submit.", { 
-            icon: "🚫",
-            style: { background: '#ff4444', color: '#fff' }
+    if (!loading && timeLeft > 0) {
+      const timer = setInterval(() => {
+        setTimeLeft((prev) => {
+           if(prev <= 1) {
+               clearInterval(timer);
+               handleSubmit(true); // Auto Submit
+               return 0;
+           }
+           return prev - 1;
         });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [loading, timeLeft]);
+
+  const formatTime = (seconds) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h > 0 ? h+':' : ''}${m < 10 ? '0'+m : m}:${s < 10 ? '0'+s : s}`;
+  };
+
+  // 3. HANDLERS
+  const handleOptionSelect = (optIndex) => {
+      setAnswers(prev => ({ ...prev, [currentQIndex]: optIndex }));
+  };
+
+  const handleClearResponse = () => {
+      const newAns = { ...answers };
+      delete newAns[currentQIndex];
+      setAnswers(newAns);
+  };
+
+  const handleReviewToggle = () => {
+      setMarkedForReview(prev => ({
+          ...prev,
+          [currentQIndex]: !prev[currentQIndex]
+      }));
+  };
+
+  const handleSubmit = async (auto = false) => {
+      if(!auto && !confirm("Are you sure you want to submit the exam?")) return;
+      
+      setIsSubmitting(true);
+      try {
+          const answersArray = questions.map((_, idx) => 
+              answers[idx] !== undefined ? answers[idx] : -1
+          );
+
+          const res = await fetch(`/api/exam/${testId}/submit`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                  answers: answersArray,
+                  timeTaken: (test.duration * 60) - timeLeft
+              })
+          });
+
+          const result = await res.json();
+          if(res.ok) {
+              toast.success("Exam Submitted Successfully!");
+              router.replace(`/dashboard/classroom/${test.courseId}/tests/${testId}/result`);
+          } else {
+              toast.error(result.error || "Submission Failed");
+              setIsSubmitting(false);
+          }
+      } catch (error) {
+          toast.error("Network Error: Could not submit.");
+          setIsSubmitting(false);
       }
-    };
-
-    const handleContextMenu = (e) => e.preventDefault();
-    const handleCopy = (e) => { e.preventDefault(); toast.error("Copy/Paste disabled!"); };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    document.addEventListener("contextmenu", handleContextMenu);
-    document.addEventListener("copy", handleCopy);
-    document.addEventListener("paste", handleCopy);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      document.removeEventListener("contextmenu", handleContextMenu);
-      document.removeEventListener("copy", handleCopy);
-      document.removeEventListener("paste", handleCopy);
-      if (cheatIntervalRef.current) clearInterval(cheatIntervalRef.current);
-    };
-  }, [handleSubmit]);
+  };
 
   // --- RENDER ---
-
   if (loading) {
     return (
-      <div className="h-screen bg-[#0a0a0a] flex items-center justify-center text-yellow-400">
-        <Loader2 className="animate-spin mr-2"/> Preparing Secure Environment...
-      </div>
-    );
-  }
-
-  // ✅ FIX: अगर Test डेटा null है, तो Crash से बचाओ और Message दिखाओ
-  if (!test) {
-    return (
-      <div className="h-screen bg-[#0a0a0a] flex flex-col items-center justify-center text-red-500">
-        <AlertTriangle size={48} className="mb-4" />
-        <h2 className="text-xl font-bold">Unable to load exam</h2>
-        <p className="text-gray-500 mt-2">Redirecting to classroom...</p>
-      </div>
-    );
-  }
-
-  // Warning Overlay
-  if (!isTabActive) {
-    return (
-      <div className="fixed inset-0 z-50 bg-red-900 flex flex-col items-center justify-center text-white text-center p-4">
-        <AlertTriangle size={80} className="mb-4 animate-bounce" />
-        <h1 className="text-4xl font-black mb-4">WARNING!</h1>
-        <p className="text-xl mb-6">You have left the secure exam window.</p>
-        <div className="bg-black/30 p-6 rounded-xl border border-red-500">
-          <p className="text-3xl font-mono font-bold text-red-400">Auto-Submitting in {countdown}s</p>
+        <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center gap-4">
+            <div className="w-16 h-16 border-4 border-yellow-500/30 border-t-yellow-500 rounded-full animate-spin"></div>
+            <p className="text-yellow-500 font-mono animate-pulse">Loading Exam Environment...</p>
         </div>
-        <p className="mt-8 text-gray-300">Return to the exam tab IMMEDIATELY to stop the timer.</p>
-      </div>
     );
   }
+
+  // Safety Check if test data missing after loading
+  if (!test || !questions.length) return null;
+
+  const currentQ = questions[currentQIndex];
+  const isReview = markedForReview[currentQIndex];
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-gray-200 select-none pb-24">
-      
-      {/* Top Bar */}
-      <div className="fixed top-0 left-0 right-0 bg-[#111] border-b border-white/10 p-4 flex justify-between items-center z-40 shadow-xl">
-        <h2 className="font-bold text-lg truncate max-w-[200px] md:max-w-md text-gray-300">
-          {test.title}
-        </h2>
-        <div className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono font-bold text-xl transition-colors ${timeLeft < 300 ? 'bg-red-500/20 text-red-500 animate-pulse' : 'bg-blue-500/10 text-blue-400'}`}>
-          <Clock size={20} />
-          {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
-        </div>
-      </div>
-
-      {/* Questions */}
-      <div className="max-w-4xl mx-auto pt-24 px-4 md:px-8">
-        {test.questions.map((q, index) => (
-          <div key={q._id} className="mb-8 p-6 bg-[#111] rounded-xl border border-white/5 hover:border-white/10 transition-colors">
-            
-            <div className="flex justify-between items-start mb-4">
-              <span className="text-sm text-gray-500 font-mono">Question {index + 1}</span>
-              <span className="text-xs bg-white/5 px-2 py-1 rounded text-gray-400 border border-white/5">{q.marks} Mark</span>
+    <div className="fixed inset-0 bg-[#050505] text-white flex flex-col overflow-hidden font-sans selection:bg-yellow-500/30">
+        
+        {/* TOP BAR */}
+        <header className="h-16 bg-[#0a0a0a] border-b border-white/10 flex items-center justify-between px-4 md:px-6 z-20 relative">
+            <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center text-black font-black text-xl shadow-[0_0_15px_rgba(234,179,8,0.4)]">
+                    L
+                </div>
+                <div>
+                    <h1 className="font-bold text-lg leading-tight md:block hidden">{test.title}</h1>
+                    <p className="text-xs text-gray-500 font-mono">Q: {currentQIndex + 1}/{questions.length}</p>
+                </div>
             </div>
-            
-            <p className="text-lg md:text-xl font-medium text-white mb-6 whitespace-pre-wrap leading-relaxed">
-              {q.questionText}
-            </p>
-            
-            <div className="space-y-3">
-              {q.options.map((opt, optIndex) => (
-                <label 
-                  key={optIndex} 
-                  className={`flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all ${
-                    answers[q._id] === optIndex 
-                    ? 'bg-blue-600/20 border-blue-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.1)]' 
-                    : 'bg-[#1a1a1a] border-white/5 hover:bg-[#222] hover:border-white/20'
-                  }`}
-                >
-                  <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-                     answers[q._id] === optIndex ? 'border-blue-500 bg-blue-500' : 'border-gray-600'
-                  }`}>
-                    {answers[q._id] === optIndex && <div className="w-2 h-2 bg-white rounded-full" />}
-                  </div>
-                  <span className="text-sm md:text-base">{opt}</span>
-                  
-                  <input 
-                    type="radio" 
-                    name={`q-${q._id}`} 
-                    className="hidden"
-                    onChange={() => setAnswers(prev => ({ ...prev, [q._id]: optIndex }))}
-                  />
-                </label>
-              ))}
+
+            <div className="flex items-center gap-4 md:gap-8">
+                <div className={`flex items-center gap-3 px-4 py-2 rounded-full border ${timeLeft < 300 ? 'bg-red-500/10 border-red-500/50 text-red-500 animate-pulse' : 'bg-gray-900 border-white/10 text-yellow-400'}`}>
+                    <Clock size={18} />
+                    <span className="font-mono text-xl font-bold tracking-widest">{formatTime(timeLeft)}</span>
+                </div>
+                <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden p-2 hover:bg-white/10 rounded-lg">
+                    <Menu size={24}/>
+                </button>
             </div>
-          </div>
-        ))}
-      </div>
+        </header>
 
-      {/* Footer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-[#0f0f0f] border-t border-white/10 p-4 z-40 backdrop-blur-lg bg-opacity-90">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <div className="text-sm text-gray-500 hidden md:block">
-            <span className="text-white font-bold">{Object.keys(answers).length}</span> / {test.questions.length} Attempted
-          </div>
-          
-          <button 
-            disabled={isSubmitting}
-            onClick={() => {
-              if (window.confirm("Are you sure you want to submit?")) {
-                handleSubmit(false);
-              }
-            }}
-            className="w-full md:w-auto bg-gradient-to-r from-yellow-500 to-orange-600 text-black font-black uppercase tracking-wider px-8 py-3 rounded-lg hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-orange-500/20"
-          >
-            {isSubmitting ? "Submitting..." : "Submit Exam"}
-          </button>
+        {/* MAIN CONTENT */}
+        <div className="flex-1 flex overflow-hidden relative">
+            
+            {/* LEFT: QUESTION AREA */}
+            <main className="flex-1 flex flex-col relative z-10">
+                <div className="h-1 bg-gray-900 w-full">
+                    <div 
+                       className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 transition-all duration-300"
+                       style={{ width: `${((currentQIndex + 1) / questions.length) * 100}%` }}
+                    ></div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 md:p-10 scroll-smooth">
+                    <div className="max-w-4xl mx-auto pb-20">
+                        <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 md:p-8 shadow-[0_0_50px_-20px_rgba(0,0,0,0.5)]">
+                            <div className="flex justify-between items-start mb-6">
+                                <h2 className="text-xl md:text-2xl font-bold text-gray-100 leading-relaxed">
+                                    <span className="text-yellow-500 mr-3">Q{currentQIndex + 1}.</span>
+                                    {currentQ.questionText}
+                                </h2>
+                                <span className="bg-white/5 border border-white/10 px-2 py-1 rounded text-xs text-gray-400 font-mono">+1.0 / -0.25</span>
+                            </div>
+
+                            <div className="space-y-3 pl-0 md:pl-11">
+                                {currentQ.options.map((opt, idx) => {
+                                    const isSelected = answers[currentQIndex] === idx;
+                                    return (
+                                        <div 
+                                            key={idx}
+                                            onClick={() => handleOptionSelect(idx)}
+                                            className={`
+                                                group relative flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200
+                                                ${isSelected ? 'border-yellow-500 bg-yellow-500/10 shadow-[0_0_20px_rgba(234,179,8,0.1)]' : 'border-white/5 bg-[#121212] hover:bg-[#181818] hover:border-white/20'}
+                                            `}
+                                        >
+                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'border-yellow-500 bg-yellow-500' : 'border-gray-600 group-hover:border-gray-400'}`}>
+                                                {isSelected && <div className="w-2 h-2 bg-black rounded-full"></div>}
+                                            </div>
+                                            <span className={`text-lg ${isSelected ? 'text-white font-medium' : 'text-gray-300'}`}>{opt}</span>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* BOTTOM BAR */}
+                <div className="h-20 bg-[#0a0a0a] border-t border-white/10 flex items-center justify-between px-6 md:px-10 z-20">
+                    <div className="flex items-center gap-4">
+                        <button onClick={handleReviewToggle} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm border ${isReview ? 'bg-purple-500/20 text-purple-400 border-purple-500/50' : 'bg-white/5 text-gray-400 border-transparent hover:bg-white/10'}`}>
+                            <Flag size={16} fill={isReview ? "currentColor" : "none"}/> <span className="hidden md:inline">{isReview ? 'Unmark' : 'Mark Review'}</span>
+                        </button>
+                        <button onClick={handleClearResponse} className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm text-gray-400 hover:text-white hover:bg-white/5">
+                            <RotateCcw size={16}/> <span className="hidden md:inline">Clear</span>
+                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        <button disabled={currentQIndex === 0} onClick={() => setCurrentQIndex(prev => prev - 1)} className="px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold disabled:opacity-30 disabled:cursor-not-allowed">Prev</button>
+                        
+                        {currentQIndex === questions.length - 1 ? (
+                             <button onClick={() => handleSubmit(false)} disabled={isSubmitting} className="px-8 py-3 rounded-xl bg-green-500 hover:bg-green-600 text-black font-black shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] active:scale-95">
+                                {isSubmitting ? 'Submitting...' : 'Submit Exam'}
+                             </button>
+                        ) : (
+                            <button onClick={() => setCurrentQIndex(prev => prev + 1)} className="px-8 py-3 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-black font-black shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:shadow-[0_0_30px_rgba(234,179,8,0.5)] active:scale-95 flex items-center gap-2">
+                                Next <ChevronRight size={18} strokeWidth={3}/>
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </main>
+
+            {/* RIGHT SIDEBAR */}
+            <aside className={`absolute md:relative top-0 right-0 h-full w-80 bg-[#080808] border-l border-white/10 z-30 transform transition-transform duration-300 ease-out ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}>
+                <div className="p-4 border-b border-white/10 bg-[#111] font-bold text-white text-sm">Question Palette</div>
+                <div className="p-6 overflow-y-auto h-[calc(100%-60px)] custom-scrollbar">
+                    <div className="grid grid-cols-4 gap-3">
+                        {questions.map((_, idx) => {
+                            const isCurr = currentQIndex === idx;
+                            const hasAns = answers[idx] !== undefined;
+                            const isMarked = markedForReview[idx];
+                            let btnClass = "bg-[#151515] text-gray-500 border-white/5"; 
+                            if (isCurr) btnClass = "bg-yellow-500 text-black ring-2 ring-yellow-500/50";
+                            else if (isMarked) btnClass = "bg-purple-900/50 text-purple-400 border-purple-500/50";
+                            else if (hasAns) btnClass = "bg-green-900/50 text-green-400 border-green-500/50";
+
+                            return (
+                                <button key={idx} onClick={() => { setCurrentQIndex(idx); setIsSidebarOpen(false); }} className={`aspect-square rounded-lg flex items-center justify-center font-bold text-sm border transition-all ${btnClass}`}>
+                                    {idx + 1}
+                                    {isMarked && <div className="absolute top-0 right-0 w-2 h-2 bg-purple-500 rounded-full shadow-[0_0_5px_currentColor]"></div>}
+                                </button>
+                            )
+                        })}
+                    </div>
+                </div>
+            </aside>
+            {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="absolute inset-0 bg-black/80 z-20 md:hidden backdrop-blur-sm"></div>}
         </div>
-      </div>
-
     </div>
   );
 }
