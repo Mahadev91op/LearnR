@@ -1,11 +1,15 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react"; // 1. 'use' import करें
 import { useRouter } from "next/navigation";
 import { CheckCircle, XCircle, AlertCircle, Clock, ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function ResultViewer({ params }) {
-  const { id: testId, courseId } = params;
+  // 2. PARAMS FIX: Params को unwrape करें और सही variables मैप करें
+  // 'id' (outer folder) = courseId
+  // 'testId' (inner folder) = testId
+  const { id: courseId, testId } = use(params);
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -16,6 +20,7 @@ export default function ResultViewer({ params }) {
 
   const fetchResult = async () => {
     try {
+      // API call में सही testId इस्तेमाल करें
       const res = await fetch(`/api/exam/${testId}/result`);
       const json = await res.json();
       if (json.success) {

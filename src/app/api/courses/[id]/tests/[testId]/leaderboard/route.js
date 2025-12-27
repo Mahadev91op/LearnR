@@ -2,16 +2,15 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Enrollment from "@/models/Enrollment";
 import Result from "@/models/Result";
-import User from "@/models/User";
-import Test from "@/models/Test"; // Ensure Test model is registered
 
 export async function GET(req, { params }) {
   await dbConnect();
   try {
-    const { courseId, testId } = params;
+    // Await params if using Next.js 15+, otherwise standard destructuring works too
+    const { id, testId } = await params; // 'courseId' को 'id' में बदल दिया
 
-    // 1. कोर्स के सभी स्टूडेंट्स लाओ
-    const enrollments = await Enrollment.find({ courseId }).populate("studentId", "name email avatar");
+    // 1. कोर्स के सभी स्टूडेंट्स लाओ (यहाँ अब courseId की जगह id यूज़ करें)
+    const enrollments = await Enrollment.find({ courseId: id }).populate("studentId", "name email avatar");
     
     // 2. इस टेस्ट के सभी रिजल्ट्स लाओ
     const results = await Result.find({ testId });
